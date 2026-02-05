@@ -1,6 +1,6 @@
 # 금융 테스트 앱 (Kotlin + Jetpack Compose)
 
-[기존프로젝트 링크](https://github.com/ksubin-dev/personality-style-test-release2)
+[기존프로젝트 링크](https://github.com/MK-SideProject/personality-style-test-release2)
 
 이 프로젝트는 기존의 복잡한 Java 기반 앱을 Kotlin과 Jetpack Compose를 사용하여 기존의 프로젝트에 있던 유형테스트 중 일부인 금융테스트를 가져와 리팩토링한 프로젝트입니다.
 
