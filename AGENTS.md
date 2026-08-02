@@ -33,6 +33,18 @@
 
 브랜치/PR/커밋/테스트 원칙처럼 작업 방식 자체가 바뀌는 경우에만 `AGENTS.md`를 수정한다.
 
+## 빌드 설정 규칙
+
+Gradle 플러그인, 라이브러리 버전, Compose 관련 버전은 가능한 한 `gradle/libs.versions.toml`에서 관리한다.
+
+`build.gradle.kts`에는 직접 버전 문자열을 하드코딩하지 않고 version catalog alias를 우선 사용한다.
+
+새 의존성을 추가할 때는 먼저 `libs.versions.toml`에 version, library, plugin alias를 정의한 뒤 모듈 Gradle 파일에서 참조한다.
+
+Android Gradle Plugin, Gradle Wrapper, Kotlin, Compose처럼 빌드 전체에 영향을 주는 버전을 바꿀 때는 관련 이슈나 PR 본문에 변경 이유와 검증 결과를 남긴다.
+
+사용하지 않는 의존성은 추가하지 않고, 기존 의존성을 제거할 때는 빌드와 테스트 영향 범위를 확인한다.
+
 ## 아키텍처 규칙
 
 단일 `:app` 모듈을 유지하되, 책임은 최소한으로 분리한다.
