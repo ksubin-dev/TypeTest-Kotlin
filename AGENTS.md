@@ -188,13 +188,29 @@ Kover 설정 이후에는 HTML/XML 리포트 생성 명령도 함께 실행한�
 - `chore/`: 빌드, 환경, 의존성, 설정 정리
 - `ui/`: 화면 배치, Compose UI, 접근성 개선
 
-권장 형식:
+브랜치 이름은 반드시 다음 형식을 사용한다.
+
+```text
+<prefix>/issue-<issue-number>-<short-work-summary>
+```
+
+규칙:
+
+- `issue-<issue-number>`를 prefix 바로 뒤에 넣는다.
+- `<short-work-summary>`는 작업 내용을 알 수 있는 짧은 영어 kebab-case로 작성한다.
+- 공백, 한글, 특수문자는 브랜치 이름에 사용하지 않는다.
+- 하나의 브랜치는 하나의 이슈 범위를 기준으로 만든다.
+- 이슈 없이 작업해야 하는 경우에는 먼저 이슈를 만들거나, 사용자가 명시적으로 예외를 승인해야 한다.
+
+예시:
 
 ```text
 feature/issue-5-json-quiz-data
 refactor/issue-6-result-calculator
 test/issue-8-compose-regression
 chore/issue-2-build-baseline
+chore/issue-16-build-tool-version-update
+docs/issue-1-branch-naming-rule
 ```
 
 ## 커밋 규칙
