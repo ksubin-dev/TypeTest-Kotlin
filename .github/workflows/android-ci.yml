@@ -56,52 +56,12 @@ jobs:
         if: github.event_name != 'pull_request'
         run: ./gradlew :app:koverHtmlReport :app:koverXmlReport --console=plain
 
-      - name: Add coverage summary
+      - name: Validate coverage summary script
+        run: python3 -m unittest discover -s scripts -p "*_test.py"
+
+      - name: Generate coverage summary
         if: always()
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          import os
-          import xml.etree.ElementTree as ET
-          from pathlib import Path
-
-          reports = [
-              ("focused debug", Path("app/build/reports/kover/reportDebug.xml")),
-              ("full reference", Path("app/build/reports/kover/report.xml")),
-          ]
-
-          def coverage_row(label, path):
-              if not path.exists():
-                  return f"| {label} | not generated | not generated | not generated | `{path}` |"
-              root = ET.parse(path).getroot()
-              counters = {counter.attrib["type"]: counter.attrib for counter in root.findall("counter")}
-
-              def percent(counter_type):
-                  counter = counters.get(counter_type)
-                  if not counter:
-                      return "n/a"
-                  covered = int(counter["covered"])
-                  missed = int(counter["missed"])
-                  total = covered + missed
-                  value = 0 if total == 0 else covered * 100 / total
-                  return f"{value:.2f}% ({covered}/{total})"
-
-              return (
-                  f"| {label} | {percent('LINE')} | {percent('BRANCH')} | "
-                  f"{percent('INSTRUCTION')} | `{path}` |"
-              )
-
-          summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
-          if summary_path:
-              with open(summary_path, "a", encoding="utf-8") as summary:
-                  summary.write("## Coverage Summary\n\n")
-                  summary.write("| Report | LINE | BRANCH | INSTRUCTION | XML |\n")
-                  summary.write("| --- | ---: | ---: | ---: | --- |\n")
-                  for label, path in reports:
-                      summary.write(coverage_row(label, path) + "\n")
-                  summary.write("\n")
-                  summary.write("Focused coverage is the quality signal. Full coverage is a reference signal only.\n")
-          PY
+        run: python3 scripts/coverage_summary.py --append-step-summary
 
       - name: Upload test results
         if: always()
@@ -120,6 +80,15 @@ jobs:
           path: |
             app/build/reports/kover/htmlDebug/
             app/build/reports/kover/reportDebug.xml
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload coverage summary
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-summary
+          path: build/reports/coverage-summary/
           if-no-files-found: error
           retention-days: 14
 
