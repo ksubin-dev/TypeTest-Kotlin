@@ -55,11 +55,12 @@ $env:ANDROID_SDK_ROOT=$env:ANDROID_HOME
 
 대표 품질 지표는 전체 앱 coverage가 아니라 결과 계산, 데이터 검증, ViewModel 상태 전이처럼 회귀 방지 가치가 큰 핵심 production code focused coverage를 기준으로 합니다.
 
-현재 단계에서는 리포트 생성 기반만 구성하고, 80% 기준 강제는 결과 계산 로직과 ViewModel 테스트가 분리된 뒤 적용합니다.
+현재 단계에서는 리포트 생성 기반과 품질 요약 리포트를 구성하고, 80% 기준 강제는 결과 계산 로직과 ViewModel 테스트가 분리된 뒤 적용합니다.
 
 ```powershell
 .\gradlew.bat :app:koverHtmlReportDebug :app:koverXmlReportDebug
 .\gradlew.bat :app:koverHtmlReport :app:koverXmlReport
+python3 scripts/coverage_summary.py
 ```
 
 자세한 측정 기준과 리포트 해석 방식은 [커버리지 운영 기준](./docs/coverage.md)을 확인합니다.
@@ -73,6 +74,8 @@ $env:ANDROID_SDK_ROOT=$env:ANDROID_HOME
 - `test-results`
 - `kover-focused-debug`
 - `coverage-summary`
+
+`coverage-summary` artifact에는 Markdown/JSON 요약과 함께 테스트 보완 우선순위를 확인할 수 있는 HTML 품질 리포트가 포함됩니다.
 
 `main` push 또는 수동 실행에서는 전체 참고 리포트도 `kover-full-reference` artifact로 생성합니다.
 
