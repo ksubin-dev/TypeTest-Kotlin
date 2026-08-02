@@ -4,7 +4,14 @@ import textwrap
 import unittest
 from pathlib import Path
 
-from coverage_summary import build_markdown, low_coverage_classes, parse_report, read_baseline
+from coverage_summary import (
+    build_html,
+    build_json,
+    build_markdown,
+    low_coverage_classes,
+    parse_report,
+    read_baseline,
+)
 
 
 SAMPLE_XML = """\
@@ -104,6 +111,73 @@ class CoverageSummaryTest(unittest.TestCase):
             low_items = low_coverage_classes(report, threshold=80, limit=5)
 
             self.assertEqual(["com.example.SampleViewModel"], [item.name for item in low_items])
+
+    def test_summary_json에_기준선_대비_변화량을_포함한다(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            xml_path = root / "report.xml"
+            xml_path.write_text(SAMPLE_XML, encoding="utf-8")
+            report = parse_report("focused debug", xml_path)
+
+            summary = build_json(
+                reports=[report],
+                baseline={
+                    "reports": {
+                        "focused debug": {
+                            "LINE": {"percent": 80.0},
+                            "BRANCH": {"percent": 20.0},
+                            "INSTRUCTION": {"percent": 70.0},
+                        }
+                    }
+                },
+                low_threshold=80,
+                low_limit=5,
+            )
+
+            self.assertEqual(4.62, summary["reports"]["focused debug"]["LINE"]["deltaPercentPoint"])
+            self.assertEqual(5.0, summary["reports"]["focused debug"]["BRANCH"]["deltaPercentPoint"])
+
+    def test_html_품질_리포트에_테스트_보완_정보를_표시한다(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            xml_path = root / "report.xml"
+            xml_path.write_text(SAMPLE_XML, encoding="utf-8")
+            report = parse_report("focused debug", xml_path)
+            summary = build_json(
+                reports=[report],
+                baseline={"reports": {"focused debug": {"LINE": {"percent": 80.0}}}},
+                low_threshold=80,
+                low_limit=5,
+            )
+
+            html = build_html(summary)
+
+            self.assertIn("Coverage Quality Report", html)
+            self.assertIn("SampleViewModel", html)
+            self.assertIn("+4.62%p", html)
+            self.assertIn("Next Test Candidates", html)
+            self.assertIn("상태 전이", html)
+
+    def test_full_reference가_없어도_html_생성에_실패하지_않는다(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            focused_xml = root / "focused.xml"
+            focused_xml.write_text(SAMPLE_XML, encoding="utf-8")
+            reports = [
+                parse_report("focused debug", focused_xml),
+                parse_report("full reference", root / "missing.xml"),
+            ]
+            summary = build_json(
+                reports=reports,
+                baseline={},
+                low_threshold=80,
+                low_limit=5,
+            )
+
+            html = build_html(summary)
+
+            self.assertIn("full reference", html)
+            self.assertIn("not generated in this run", html)
 
 
 if __name__ == "__main__":
