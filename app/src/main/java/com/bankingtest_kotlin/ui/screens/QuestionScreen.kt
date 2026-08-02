@@ -14,11 +14,12 @@ import androidx.compose.ui.unit.sp
 import com.bankingtest_kotlin.domain.Question
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.layout.ContentScale
+import com.bankingtest_kotlin.domain.Answer
 
 @Composable
 fun QuestionScreen(
     question: Question,
-    onAnswerSelected: (Int) -> Unit
+    onAnswerSelected: (Answer) -> Unit
 ) {
     Box(
         modifier = Modifier.fillMaxSize()
@@ -45,7 +46,7 @@ fun QuestionScreen(
         ) {
             question.answers.forEach { answer ->
                 Button(
-                    onClick = { onAnswerSelected(answer.resultId) },
+                    onClick = { onAnswerSelected(answer) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 8.dp)

@@ -6,7 +6,10 @@ import androidx.lifecycle.AndroidViewModel
 import com.bankingtest_kotlin.data.AndroidDrawableResourceMapper
 import com.bankingtest_kotlin.data.AssetQuizRepository
 import com.bankingtest_kotlin.data.QuizMapper
+import com.bankingtest_kotlin.domain.Answer
 import com.bankingtest_kotlin.domain.QuizResult
+import com.bankingtest_kotlin.domain.calculator.ResultCalculator
+import com.bankingtest_kotlin.domain.calculator.ScoreBasedResultCalculator
 
 class QuizViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = AssetQuizRepository(
@@ -19,39 +22,31 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
         )
     )
     private val quiz = repository.getBankingQuiz()
+    private val resultCalculator: ResultCalculator = ScoreBasedResultCalculator(
+        defaultResultId = DEFAULT_RESULT_ID
+    )
 
     val questions = quiz.questions
     val results = quiz.results
 
-    // 사용자의 답변 빈도를 저장할 리스트
-    private val answerCounts = mutableStateListOf<Int>().apply {
-        repeat((results.maxOfOrNull { it.id } ?: 0) + 1) {
-            add(0)
-        }
-    }
+    private val selectedAnswers = mutableStateListOf<Answer>()
 
-    fun addAnswer(resultId: Int) {
-        if (resultId >= 1 && resultId < answerCounts.size) {
-            answerCounts[resultId] = answerCounts[resultId] + 1
-        }
+    fun addAnswer(answer: Answer) {
+        selectedAnswers.add(answer)
     }
 
     fun getFinalResult(): QuizResult {
-        // 가장 높은 빈도수를 가진 resultId 찾기
-        val maxCount = answerCounts.maxOrNull() ?: 0
-        val finalResultId = if (maxCount > 0) {
-            answerCounts.indexOf(maxCount)
-        } else {
-            // 모든 답변이 0일 경우 기본값 (ex: resultId = 3)
-            3
-        }
-        return results.first { it.id == finalResultId }
+        return resultCalculator.calculate(
+            selectedAnswers = selectedAnswers,
+            results = results
+        )
     }
 
     fun resetQuiz() {
-        // 퀴즈를 다시 시작할 때 답변 카운트를 초기화
-        for (i in 1 until answerCounts.size) {
-            answerCounts[i] = 0
-        }
+        selectedAnswers.clear()
+    }
+
+    private companion object {
+        const val DEFAULT_RESULT_ID = 3
     }
 }
