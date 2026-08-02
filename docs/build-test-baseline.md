@@ -56,6 +56,7 @@ $env:ANDROID_SDK_ROOT=$env:ANDROID_HOME
 | --- | --- | --- |
 | `.\gradlew.bat --version` | 성공 | Gradle 8.14.5, JVM 21.0.10 확인 |
 | `.\gradlew.bat clean test :app:assembleDebug --console=plain` | 성공 | debug/release unit test 리포트와 debug APK 생성 |
+| `.\gradlew.bat clean test :app:assembleDebug :app:assembleDebugAndroidTest --console=plain` | 성공 | #3 패키지 정리 후 androidTest APK 컴파일 확인 |
 
 ## 버전 업데이트 기준
 
@@ -83,7 +84,7 @@ AGP 9.x와 Gradle 9.x는 major upgrade라 이번 기준선에서는 제외했다
 
 현재 소스에 존재하는 로컬 unit test는 예제 테스트 1개다.
 
-- 파일: `app/src/test/java/com/example/bankingtest_kotlin/ExampleUnitTest.kt`
+- 파일: `app/src/test/java/com/bankingtest_kotlin/ExampleUnitTest.kt`
 - 테스트: `addition_isCorrect`
 
 `.\gradlew.bat test` 실행 시 build variant별 리포트가 생성된다.
@@ -101,13 +102,12 @@ AGP 9.x와 Gradle 9.x는 major upgrade라 이번 기준선에서는 제외했다
 ## 현재 한계
 
 - 현재 unit test는 기본 예제 테스트라 금융 테스트 기능 회귀를 막지 못한다.
-- `app/src/androidTest/java/com/example/bankingtest_kotlin/ExampleInstrumentedTest.kt`는 존재하지만, 이번 기준선에서는 에뮬레이터가 필요한 `connectedAndroidTest`를 실행하지 않았다.
-- instrumented test는 현재 `com.example.bankingtest_kotlin` 패키지명을 기대한다. 실제 `applicationId`는 `com.bankingtest_kotlin`이므로 #3에서 패키지명, namespace, applicationId 정리와 함께 확인이 필요하다.
+- `app/src/androidTest/java/com/bankingtest_kotlin/ExampleInstrumentedTest.kt`는 존재하지만, 이번 기준선에서는 에뮬레이터가 필요한 `connectedAndroidTest`를 실행하지 않았다.
+- #3에서 main/test/androidTest 패키지와 instrumented test의 expected package를 `com.bankingtest_kotlin` 기준으로 정리했다.
 - Kover 또는 JaCoCo 커버리지 리포트는 아직 설정되어 있지 않다.
 
 ## 후속 작업
 
-- #3 패키지명, namespace, applicationId 정리
 - #4 Kover 기반 커버리지 HTML/XML 리포트 구성
 - #6 결과 계산 로직 분리 이후 의미 있는 unit test 추가
 - #8 금융 테스트 주요 흐름 Compose UI 테스트 추가
