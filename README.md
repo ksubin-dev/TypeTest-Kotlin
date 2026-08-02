@@ -66,14 +66,16 @@ $env:ANDROID_SDK_ROOT=$env:ANDROID_HOME
 
 ## CI
 
-`develop` 대상 PR에서는 GitHub Actions가 unit test, debug build, focused Kover HTML/XML 리포트 생성을 실행합니다.
+`develop` 대상 PR에서는 GitHub Actions가 debug unit test, debug build, focused Kover HTML/XML 리포트 생성을 실행합니다.
 
 생성 artifact:
 
 - `test-results`
 - `kover-focused-debug`
 
-`develop` 또는 `main` push, 수동 실행에서는 전체 참고 리포트도 `kover-full-reference` artifact로 생성합니다.
+`main` push 또는 수동 실행에서는 전체 참고 리포트도 `kover-full-reference` artifact로 생성합니다.
+
+`develop` 병합 시점에는 PR에서 이미 실행한 검증을 반복하지 않도록 별도 push CI를 실행하지 않습니다.
 
 PR 라벨은 `관련 이슈: #번호` 형식의 연결 이슈 라벨과 변경 파일 경로를 기준으로 자동 부착합니다.
 

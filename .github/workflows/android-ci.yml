@@ -10,8 +10,11 @@ on:
       - "images/**"
   push:
     branches:
-      - develop
       - main
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "images/**"
   workflow_dispatch:
 
 permissions:
@@ -46,14 +49,8 @@ jobs:
       - name: Ensure Gradle wrapper is executable
         run: chmod +x ./gradlew
 
-      - name: Run unit tests
-        run: ./gradlew test --console=plain
-
-      - name: Build debug APK
-        run: ./gradlew :app:assembleDebug --console=plain
-
-      - name: Generate focused Kover report
-        run: ./gradlew :app:koverHtmlReportDebug :app:koverXmlReportDebug --console=plain
+      - name: Validate debug build and focused coverage
+        run: ./gradlew :app:testDebugUnitTest :app:assembleDebug :app:koverHtmlReportDebug :app:koverXmlReportDebug --console=plain
 
       - name: Generate full reference Kover report
         if: github.event_name != 'pull_request'
