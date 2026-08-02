@@ -76,9 +76,10 @@ kover {
                 excludes {
                     classes(
                         "com.bankingtest_kotlin.MainActivity",
-                        "com.bankingtest_kotlin.MainActivityKt",
+                        "com.bankingtest_kotlin.MainActivityKt*",
                         "com.bankingtest_kotlin.ComposableSingletons*",
                         "com.bankingtest_kotlin.navigation.*",
+                        "com.bankingtest_kotlin.presentation.QuizViewModel\$Companion*",
                         "com.bankingtest_kotlin.ui.*",
                         "com.bankingtest_kotlin.domain.Answer",
                         "com.bankingtest_kotlin.domain.Question",
