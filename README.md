@@ -35,12 +35,19 @@ Android 프로젝트는 저장소 루트에서 바로 열고 실행할 수 있�
 
 ## 빌드 및 테스트
 
-Windows 환경에서는 저장소 루트에서 다음 명령을 실행합니다.
+Windows 환경에서는 Android Studio JBR을 사용해 저장소 루트에서 다음 명령을 실행합니다.
 
 ```powershell
+$env:JAVA_HOME='C:\Program Files\Android\Android Studio\jbr'
+$env:Path="$env:JAVA_HOME\bin;$env:Path"
+$env:ANDROID_HOME="$env:LOCALAPPDATA\Android\Sdk"
+$env:ANDROID_SDK_ROOT=$env:ANDROID_HOME
+
 .\gradlew.bat test
 .\gradlew.bat :app:assembleDebug
 ```
+
+자세한 기준 환경과 현재 테스트 한계는 [빌드 및 테스트 기준선](./docs/build-test-baseline.md)을 확인합니다.
 
 ### 리팩토링 전 (Java + XML)
 
