@@ -7,16 +7,23 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bankingtest_kotlin.domain.QuizResult
 import androidx.compose.ui.layout.ContentScale
+import com.bankingtest_kotlin.ui.QuizTestTags
 
 @Composable
 fun ResultScreen(result: QuizResult, onRestartQuiz: () -> Unit) {
     Box(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier
+            .fillMaxSize()
+            .testTag(QuizTestTags.ResultScreen)
     ) {
         // 결과 이미지를 배경으로 설정
         result.imageResId?.let { resId ->
@@ -37,9 +44,23 @@ fun ResultScreen(result: QuizResult, onRestartQuiz: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Bottom // 버튼을 맨 아래로 정렬
         ) {
+            Text(
+                text = result.text,
+                color = Color.White,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+                    .testTag(QuizTestTags.ResultText)
+            )
+
             Button(
                 onClick = onRestartQuiz,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag(QuizTestTags.RestartButton)
             ) {
                 Text("다시 시작", fontSize = 20.sp)
             }
