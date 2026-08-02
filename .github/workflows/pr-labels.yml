@@ -1,0 +1,109 @@
+name: PR Labels
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - edited
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+concurrency:
+  group: pr-labels-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  labels:
+    name: Apply PR labels
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Copy issue labels and infer path labels
+        uses: actions/github-script@v9
+        with:
+          retries: 3
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const pull = context.payload.pull_request;
+            const labels = new Set();
+
+            const repoLabels = await github.paginate(github.rest.issues.listLabelsForRepo, {
+              owner,
+              repo,
+              per_page: 100,
+            });
+            const existingLabels = new Set(repoLabels.map((label) => label.name));
+
+            const body = pull.body || "";
+            const issueNumbers = [...body.matchAll(/관련\s*이슈\s*:\s*#(\d+)/g)]
+              .map((match) => Number(match[1]))
+              .filter((issueNumber) => Number.isInteger(issueNumber));
+
+            for (const issueNumber of issueNumbers) {
+              try {
+                const issue = await github.rest.issues.get({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                });
+                for (const label of issue.data.labels) {
+                  const name = typeof label === "string" ? label : label.name;
+                  if (name && existingLabels.has(name)) {
+                    labels.add(name);
+                  }
+                }
+              } catch (error) {
+                core.warning(`Could not read issue #${issueNumber}: ${error.message}`);
+              }
+            }
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner,
+              repo,
+              pull_number: pull.number,
+              per_page: 100,
+            });
+            const paths = files.map((file) => file.filename);
+
+            const addIfExists = (label) => {
+              if (existingLabels.has(label)) {
+                labels.add(label);
+              }
+            };
+
+            if (paths.some((path) => path === "AGENTS.md" || path === "README.md" || path.startsWith("docs/"))) {
+              addIfExists("docs");
+            }
+            if (paths.some((path) => path.startsWith(".github/") || path.endsWith(".gradle.kts") || path.startsWith("gradle/"))) {
+              addIfExists("setup");
+            }
+            if (paths.some((path) => path.includes("/src/test/") || path.includes("/src/androidTest/") || path.includes("kover") || path.startsWith(".github/workflows/android-ci"))) {
+              addIfExists("test");
+            }
+            if (paths.some((path) => path.includes("/src/main/java/") && (path.includes("/domain/") || path.includes("/data/") || path.includes("/presentation/")))) {
+              addIfExists("refactor");
+            }
+            if (paths.some((path) => path.startsWith("app/src/main/assets/") || path.includes("/data/"))) {
+              addIfExists("data");
+            }
+
+            if (labels.size === 0) {
+              core.info("No labels to apply.");
+              return;
+            }
+
+            await github.rest.issues.addLabels({
+              owner,
+              repo,
+              issue_number: pull.number,
+              labels: [...labels],
+            });
+
+            core.info(`Applied labels: ${[...labels].join(", ")}`);

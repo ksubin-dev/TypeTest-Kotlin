@@ -1,0 +1,138 @@
+name: Android CI
+
+on:
+  pull_request:
+    branches:
+      - develop
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "images/**"
+  push:
+    branches:
+      - develop
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-build-coverage:
+    name: Test, Build, Kover
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-provider: basic
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+
+      - name: Ensure Gradle wrapper is executable
+        run: chmod +x ./gradlew
+
+      - name: Run unit tests
+        run: ./gradlew test --console=plain
+
+      - name: Build debug APK
+        run: ./gradlew :app:assembleDebug --console=plain
+
+      - name: Generate focused Kover report
+        run: ./gradlew :app:koverHtmlReportDebug :app:koverXmlReportDebug --console=plain
+
+      - name: Generate full reference Kover report
+        if: github.event_name != 'pull_request'
+        run: ./gradlew :app:koverHtmlReport :app:koverXmlReport --console=plain
+
+      - name: Add coverage summary
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          reports = [
+              ("focused debug", Path("app/build/reports/kover/reportDebug.xml")),
+              ("full reference", Path("app/build/reports/kover/report.xml")),
+          ]
+
+          def coverage_row(label, path):
+              if not path.exists():
+                  return f"| {label} | not generated | not generated | not generated | `{path}` |"
+              root = ET.parse(path).getroot()
+              counters = {counter.attrib["type"]: counter.attrib for counter in root.findall("counter")}
+
+              def percent(counter_type):
+                  counter = counters.get(counter_type)
+                  if not counter:
+                      return "n/a"
+                  covered = int(counter["covered"])
+                  missed = int(counter["missed"])
+                  total = covered + missed
+                  value = 0 if total == 0 else covered * 100 / total
+                  return f"{value:.2f}% ({covered}/{total})"
+
+              return (
+                  f"| {label} | {percent('LINE')} | {percent('BRANCH')} | "
+                  f"{percent('INSTRUCTION')} | `{path}` |"
+              )
+
+          summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+          if summary_path:
+              with open(summary_path, "a", encoding="utf-8") as summary:
+                  summary.write("## Coverage Summary\n\n")
+                  summary.write("| Report | LINE | BRANCH | INSTRUCTION | XML |\n")
+                  summary.write("| --- | ---: | ---: | ---: | --- |\n")
+                  for label, path in reports:
+                      summary.write(coverage_row(label, path) + "\n")
+                  summary.write("\n")
+                  summary.write("Focused coverage is the quality signal. Full coverage is a reference signal only.\n")
+          PY
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results
+          path: app/build/test-results/**/*.xml
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload focused Kover report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: kover-focused-debug
+          path: |
+            app/build/reports/kover/htmlDebug/
+            app/build/reports/kover/reportDebug.xml
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload full reference Kover report
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: kover-full-reference
+          path: |
+            app/build/reports/kover/html/
+            app/build/reports/kover/report.xml
+          if-no-files-found: error
+          retention-days: 14

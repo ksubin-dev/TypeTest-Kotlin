@@ -64,6 +64,19 @@ $env:ANDROID_SDK_ROOT=$env:ANDROID_HOME
 
 자세한 측정 기준과 리포트 해석 방식은 [커버리지 운영 기준](./docs/coverage.md)을 확인합니다.
 
+## CI
+
+`develop` 대상 PR에서는 GitHub Actions가 unit test, debug build, focused Kover HTML/XML 리포트 생성을 실행합니다.
+
+생성 artifact:
+
+- `test-results`
+- `kover-focused-debug`
+
+`develop` 또는 `main` push, 수동 실행에서는 전체 참고 리포트도 `kover-full-reference` artifact로 생성합니다.
+
+PR 라벨은 `관련 이슈: #번호` 형식의 연결 이슈 라벨과 변경 파일 경로를 기준으로 자동 부착합니다.
+
 ### 리팩토링 전 (Java + XML)
 
 - 액티비티 및 프래그먼트가 각 화면마다 별도로 존재
