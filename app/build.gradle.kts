@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kover)
 }
 
 android {
@@ -64,4 +65,22 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+}
+
+kover {
+    reports {
+        variant("debug") {
+            filters {
+                excludes {
+                    classes(
+                        "com.bankingtest_kotlin.MainActivity",
+                        "com.bankingtest_kotlin.MainActivityKt",
+                        "com.bankingtest_kotlin.ComposableSingletons*",
+                        "com.bankingtest_kotlin.navigation.*",
+                        "com.bankingtest_kotlin.ui.*",
+                    )
+                }
+            }
+        }
+    }
 }

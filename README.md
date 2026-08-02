@@ -49,6 +49,21 @@ $env:ANDROID_SDK_ROOT=$env:ANDROID_HOME
 
 자세한 기준 환경과 현재 테스트 한계는 [빌드 및 테스트 기준선](./docs/build-test-baseline.md)을 확인합니다.
 
+## 커버리지 리포트
+
+이 프로젝트는 Kover 기반 HTML/XML 커버리지 리포트를 사용합니다.
+
+대표 품질 지표는 전체 앱 coverage가 아니라 결과 계산, 데이터 검증, ViewModel 상태 전이처럼 회귀 방지 가치가 큰 핵심 production code focused coverage를 기준으로 합니다.
+
+현재 단계에서는 리포트 생성 기반만 구성하고, 80% 기준 강제는 결과 계산 로직과 ViewModel 테스트가 분리된 뒤 적용합니다.
+
+```powershell
+.\gradlew.bat :app:koverHtmlReportDebug :app:koverXmlReportDebug
+.\gradlew.bat :app:koverHtmlReport :app:koverXmlReport
+```
+
+자세한 측정 기준과 리포트 해석 방식은 [커버리지 운영 기준](./docs/coverage.md)을 확인합니다.
+
 ### 리팩토링 전 (Java + XML)
 
 - 액티비티 및 프래그먼트가 각 화면마다 별도로 존재
