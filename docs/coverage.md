@@ -115,6 +115,36 @@ Kover 태스크 실행 후 `app/build/reports/kover/` 아래에 HTML/XML 리포�
 
 80% 기준 강제는 #6 결과 계산 로직 분리, #7 ViewModel 상태 구조 개선, #8 Compose UI 흐름 테스트 이후 별도 이슈에서 적용한다.
 
+## #8 이후 현재 품질 기준
+
+확인일: 2026-08-02
+
+#6에서 결과 계산 로직을 분리하고, #7에서 ViewModel 상태 구조를 정리하고, #8에서 Compose UI 흐름 테스트를 추가한 뒤의 현재 기준이다. #32 이후에는 같은 수치를 Markdown/JSON/HTML 품질 리포트로 확인할 수 있다.
+
+| 리포트 | LINE | BRANCH | INSTRUCTION | 해석 |
+| --- | ---: | ---: | ---: | --- |
+| focused debug | 98.18% (108/110) | 87.50% (42/48) | 98.17% (644/656) | 결과 계산, data, ViewModel 등 핵심 production code가 테스트로 보호되는 현재 대표 품질 수치다. |
+| 전체 참고 | 39.58% (152/384) | 31.48% (51/162) | 32.07% (1103/3439) | Compose UI, Activity glue, Navigation glue까지 포함한 참고 수치다. PR 실패 기준으로 사용하지 않는다. |
+
+계층별 focused coverage 상태:
+
+| 계층 | LINE | BRANCH | 상태 |
+| --- | ---: | ---: | --- |
+| domain/result calculator | 100.00% (24/24) | 91.67% (22/24) | strong |
+| ViewModel | 96.97% (32/33) | 100.00% (10/10) | strong |
+| data | 100.00% (34/34) | 75.00% (9/12) | stable |
+
+테스트 자동화 신호:
+
+| 신호 | 결과 |
+| --- | ---: |
+| unit test | 29개 통과 |
+| Compose UI flow test | 1개 통과 |
+| coverage summary script test | 10개 통과 |
+| low coverage areas | 0개 |
+
+현재 focused line coverage는 충분히 높으므로, 다음 단계에서는 branch coverage 90% 근처까지 조건 분기 테스트를 보강하거나 focused coverage gate를 단계적으로 적용하는 것을 검토한다.
+
 ## CI 운영 방향
 
 develop 대상 PR에서는 빠른 focused coverage 리포트를 우선 생성한다.
