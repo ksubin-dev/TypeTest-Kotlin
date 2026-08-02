@@ -9,15 +9,17 @@
 - OS: Windows 11
 - 권장 JDK: Android Studio JBR 21
 - 확인한 Java 버전: `openjdk version "21.0.10"`
-- Gradle Wrapper: `8.13`
-- Android Gradle Plugin: `8.12.3`
-- Kotlin: `2.0.21`
-- Compose BOM: `2024.09.00`
+- Gradle Wrapper: `8.14.5`
+- Android Gradle Plugin: `8.13.2`
+- Kotlin: `2.3.20`
+- Compose BOM: `2026.06.00`
 - compileSdk: `36`
 - targetSdk: `36`
 - minSdk: `24`
+- Java source/target compatibility: `21`
+- Kotlin JVM target: `21`
 
-JDK 24에서는 Gradle unit test task 생성 실패 사례가 있었으므로 현재 기준선에서는 사용하지 않는다.
+Android Studio JBR 21은 현재 로컬 검증 기준이다. JDK 24는 이 프로젝트의 기준 런타임으로 사용하지 않는다.
 
 ## Android SDK 설정
 
@@ -41,9 +43,10 @@ $env:ANDROID_HOME="$env:LOCALAPPDATA\Android\Sdk"
 $env:ANDROID_SDK_ROOT=$env:ANDROID_HOME
 
 .\gradlew.bat --version
-.\gradlew.bat test
-.\gradlew.bat :app:assembleDebug
+.\gradlew.bat clean test :app:assembleDebug --console=plain
 ```
+
+같은 작업트리에서 여러 Gradle 명령을 동시에 실행하면 `app/build` 아래 중간 산출물 접근이 충돌할 수 있다. 로컬 검증과 CI에서는 위처럼 하나의 Gradle 실행에서 필요한 task를 순차로 묶는다.
 
 ## 확인 결과
 
@@ -51,9 +54,30 @@ $env:ANDROID_SDK_ROOT=$env:ANDROID_HOME
 
 | 명령 | 결과 | 비고 |
 | --- | --- | --- |
-| `.\gradlew.bat --version` | 성공 | Gradle 8.13, JVM 21.0.10 확인 |
-| `.\gradlew.bat test` | 성공 | debug/release unit test 리포트 생성 |
-| `.\gradlew.bat :app:assembleDebug` | 성공 | debug APK 생성 |
+| `.\gradlew.bat --version` | 성공 | Gradle 8.14.5, JVM 21.0.10 확인 |
+| `.\gradlew.bat clean test :app:assembleDebug --console=plain` | 성공 | debug/release unit test 리포트와 debug APK 생성 |
+
+## 버전 업데이트 기준
+
+#16에서 다음 버전을 업데이트했다.
+
+| 항목 | 이전 | 현재 | 판단 |
+| --- | --- | --- | --- |
+| Gradle Wrapper | `8.13` | `8.14.5` | AGP 8.x 범위에서 업데이트 |
+| Android Gradle Plugin | `8.12.3` | `8.13.2` | AGP 9.x major upgrade는 제외 |
+| Kotlin | `2.0.21` | `2.3.20` | Compose Compiler plugin과 함께 업데이트 |
+| Compose BOM | `2024.09.00` | `2026.06.00` | Compose 라이브러리 묶음 업데이트 |
+| Java source/target compatibility | `11` | `21` | Android Studio JBR 21 기준으로 정렬 |
+| Kotlin JVM target | `11` | `21` | Java target과 일치하도록 정렬 |
+| compileSdk | `36` | `36` | 유지 |
+| targetSdk | `36` | `36` | 유지 |
+| minSdk | `24` | `24` | 유지 |
+
+Kotlin 2.3에서는 기존 `android.kotlinOptions { jvmTarget = "11" }` 방식이 빌드 에러가 되므로 `kotlin.compilerOptions` DSL로 마이그레이션했다.
+
+Java/Kotlin target 21은 Android Studio JBR 21 기준으로 Java/Kotlin 컴파일 타깃을 맞춘다는 의미다. Android 런타임에서 Java 21 API를 자유롭게 사용할 수 있다는 뜻은 아니므로, 새 Java API 사용은 Android API 레벨과 desugaring 지원 여부를 별도로 확인한다.
+
+AGP 9.x와 Gradle 9.x는 major upgrade라 이번 기준선에서는 제외했다. Kover와 CI 설정이 들어가기 전에 안정적인 AGP 8.x 조합을 먼저 확보한다.
 
 ## 현재 테스트 기준선
 
