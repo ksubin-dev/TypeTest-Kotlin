@@ -1,41 +1,116 @@
-# 금융 테스트 앱 (Kotlin + Jetpack Compose)
+# 금융 테스트 앱
 
-[기존프로젝트 링크](https://github.com/MK-SideProject/personality-style-test-release2)
+기존 Java/XML 성격 유형 테스트 앱에서 **금융 테스트** 기능을 분리해 Kotlin과 Jetpack Compose로 다시 구성한 Android 프로젝트입니다.
 
-이 프로젝트는 기존의 복잡한 Java 기반 앱을 Kotlin과 Jetpack Compose를 사용하여 기존의 프로젝트에 있던 유형테스트 중 일부인 금융테스트를 가져와 리팩토링한 프로젝트입니다.
+원본 저장소: [MK-SideProject/personality-style-test-release2](https://github.com/MK-SideProject/personality-style-test-release2)
 
-## 프로젝트 목표
+이 프로젝트의 목표는 단순히 화면을 Compose로 옮기는 것이 아니라, 질문과 결과 데이터를 교체하면 같은 화면 흐름을 재사용할 수 있는 구조를 만들고, 테스트 자동화와 커버리지 리포트로 리팩토링을 안전하게 진행하는 것입니다.
 
-기존의 Java 및 XML 기반 UI 개발 방식에서는 화면 하나하나마다 복잡한 액티비티/프래그먼트와 XML 레이아웃을 생성해야 했습니다. 이 프로젝트는 Jetpack Compose를 도입하여 다음과 같은 목표를 달성했습니다.
+## 핵심 요약
 
-- **코드의 간결성**: 수많은 클래스와 파일을 하나로 통합하여 불필요한 코드를 대폭 줄였습니다.
-- **유지보수의 용이성**: 화면의 상태 관리를 ViewModel로 일원화하고, 재사용 가능한 Composable 함수로 UI를 구축하여 유지보수를 쉽게 만들었습니다.
+| 항목 | 현재 상태 |
+| --- | --- |
+| 앱 범위 | 금융 테스트 1종 |
+| 질문/결과 데이터 | JSON asset 기반, 질문 6개 / 결과 3개 |
+| UI | Kotlin + Jetpack Compose |
+| 상태 관리 | ViewModel + 단일 UiState |
+| 결과 계산 | `ScoreBasedResultCalculator`로 분리 |
+| 테스트 | unit test 29개, Compose UI flow test 1개 |
+| 커버리지 | focused LINE 98.18%, BRANCH 87.50% |
+| 자동화 | GitHub Actions, Kover, coverage summary, PR 라벨 자동화 |
 
-## 주요 기술 및 라이브러리
+## 앱 흐름
 
-- **Kotlin**
-- **Jetpack Compose** : UI를 선언적으로 구성하여 복잡한 XML 레이아웃을 대체합니다. Composable 함수로 각 화면을 정의하고, Surface와 Theme를 사용하여 앱의 스타일을 적용합니다.
-- **Jetpack Navigation** : NavController를 사용하여 화면 간 이동을 관리합니다. NavHost를 사용하여 다양한 화면을 네비게이션 구조로 연결합니다.
-- **ViewModel**
+### 1. 메인 화면
+
+<img src="./images/1.png" alt="금융 테스트 메인 화면" width="220"/>
+
+`테스트 시작!` 버튼을 누르면 금융 테스트가 시작됩니다.
+
+### 2. 질문 화면
+
+<img src="./images/2.png" alt="금융 테스트 질문 화면" width="220"/>
+
+질문과 답변은 JSON 데이터에서 읽어오며, 화면 파일을 질문 개수만큼 늘리지 않고 같은 `QuizScreen`을 재사용합니다.
+
+### 3. 결과 화면
+
+<img src="./images/3.png" alt="금융 테스트 결과 화면" width="220"/>
+
+모든 질문에 답하면 점수 기반 계산 로직을 통해 결과가 표시됩니다.
+
+### 기능 시연
+
+<img src="./images/restart.gif" alt="금융 테스트 다시 시작 시연" width="620"/>
+
+결과 화면에서 다시 시작하면 상태가 초기화되고 첫 질문 흐름으로 돌아갑니다.
+
+## 리팩토링 방향
+
+| 구분 | 기존 Java/XML 방식 | 현재 Kotlin/Compose 방식 |
+| --- | --- | --- |
+| 화면 구성 | 테스트/화면별 Activity, Fragment, XML 분산 | 단일 Activity + 재사용 가능한 Composable |
+| 질문 데이터 | 코드와 리소스에 강하게 결합 | `app/src/main/assets/quizzes/banking.json` |
+| 결과 계산 | 문자열 flag, Bundle, if/else 흐름에 의존 | `ResultCalculator` 인터페이스와 구현체로 분리 |
+| 상태 관리 | 화면 이동과 상태 변경이 섞이기 쉬움 | ViewModel의 단일 `QuizUiState` |
+| 회귀 검증 | 수동 확인 중심 | unit test, Compose UI test, CI 자동화 |
+| 품질 확인 | 별도 기준 없음 | Kover focused coverage와 HTML 품질 리포트 |
 
 ## 프로젝트 구조
-
-Android 프로젝트는 저장소 루트에서 바로 열고 실행할 수 있습니다.
 
 ```text
 .
 ├── app/
-├── gradle/
-├── build.gradle.kts
-├── gradle.properties
-├── gradlew
-├── gradlew.bat
-└── settings.gradle.kts
+│   └── src/
+│       ├── main/
+│       │   ├── assets/quizzes/banking.json
+│       │   └── java/com/bankingtest_kotlin/
+│       │       ├── data/
+│       │       ├── domain/
+│       │       ├── navigation/
+│       │       ├── presentation/
+│       │       └── ui/
+│       ├── test/
+│       └── androidTest/
+├── docs/
+├── scripts/
+├── .github/workflows/
+└── gradle/libs.versions.toml
 ```
 
-## 빌드 및 테스트
+## 테스트와 커버리지
 
-Windows 환경에서는 Android Studio JBR을 사용해 저장소 루트에서 다음 명령을 실행합니다.
+이 프로젝트는 전체 앱 coverage를 억지로 높이는 대신, 리팩토링 중 회귀를 막는 데 의미가 큰 코드에 focused coverage를 적용합니다.
+
+대표 측정 대상:
+
+- 결과 계산 로직
+- JSON 데이터 파싱/매핑
+- ViewModel 상태 전이
+
+현재 품질 리포트 기준:
+
+| 지표 | 결과 |
+| --- | ---: |
+| focused LINE | 98.18% |
+| focused BRANCH | 87.50% |
+| focused INSTRUCTION | 98.17% |
+| low coverage areas | 0 |
+| unit tests | 29 passed |
+| Compose UI flow test | 1 passed |
+
+위 수치는 금융 테스트 데이터를 JSON으로 분리하고, 결과 계산 로직과 ViewModel 상태 전이를 테스트 가능하게 정리한 뒤 반영된 결과입니다.
+
+<details>
+<summary>AI 커버리지 품질 리포트 미리보기</summary>
+
+<br>
+
+<img width="760" alt="Coverage Quality Report" src="https://github.com/user-attachments/assets/0dac8576-d7ad-4394-83d4-80359db29250" />
+
+</details>
+
+로컬 실행:
 
 ```powershell
 $env:JAVA_HOME='C:\Program Files\Android\Android Studio\jbr'
@@ -43,109 +118,48 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 $env:ANDROID_HOME="$env:LOCALAPPDATA\Android\Sdk"
 $env:ANDROID_SDK_ROOT=$env:ANDROID_HOME
 
-.\gradlew.bat test
-.\gradlew.bat :app:assembleDebug
-```
-
-자세한 기준 환경과 현재 테스트 한계는 [빌드 및 테스트 기준선](./docs/build-test-baseline.md)을 확인합니다.
-
-## 커버리지 리포트
-
-이 프로젝트는 Kover 기반 HTML/XML 커버리지 리포트를 사용합니다.
-
-대표 품질 지표는 전체 앱 coverage가 아니라 결과 계산, 데이터 검증, ViewModel 상태 전이처럼 회귀 방지 가치가 큰 핵심 production code focused coverage를 기준으로 합니다.
-
-현재 단계에서는 리포트 생성 기반과 품질 요약 리포트를 구성하고, 80% 기준 강제는 결과 계산 로직과 ViewModel 테스트가 분리된 뒤 적용합니다.
-
-```powershell
+.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug
 .\gradlew.bat :app:koverHtmlReportDebug :app:koverXmlReportDebug
-.\gradlew.bat :app:koverHtmlReport :app:koverXmlReport
 python3 scripts/coverage_summary.py
 ```
 
-자세한 측정 기준과 리포트 해석 방식은 [커버리지 운영 기준](./docs/coverage.md)을 확인합니다.
+리포트 산출물:
 
-## CI
+- `app/build/reports/kover/htmlDebug/index.html`
+- `build/reports/coverage-summary/coverage-report.html`
+- `build/reports/coverage-summary/coverage-summary.md`
+- `build/reports/coverage-summary/coverage-pr-summary.md`
 
-`develop` 대상 PR에서는 GitHub Actions가 debug unit test, debug build, focused Kover HTML/XML 리포트 생성을 실행합니다.
+자세한 기준은 [커버리지 운영 기준](./docs/coverage.md)을 확인할 수 있습니다.
 
-생성 artifact:
+## AI 활용 자동화
 
-- `test-results`
-- `kover-focused-debug`
-- `coverage-summary`
+AI는 코드 작성 보조뿐 아니라 반복적인 품질 관리 작업을 줄이는 방향으로 활용했습니다.
 
-`coverage-summary` artifact에는 Markdown/JSON 요약과 함께 테스트 보완 우선순위를 확인할 수 있는 HTML 품질 리포트가 포함됩니다.
+- 이슈 단위 작업 분해
+- 테스트 후보 도출
+- 커버리지 리포트 해석
+- PR/이슈 기록용 요약 생성
+- 다음 보완 후보 정리
+- README와 기술 문서 초안 정리
 
-`main` push 또는 수동 실행에서는 전체 참고 리포트도 `kover-full-reference` artifact로 생성합니다.
+관련 문서: [AI 활용 테스트 자동화 정리](./docs/ai-test-automation-report.md)
 
-`develop` 병합 시점에는 PR에서 이미 실행한 검증을 반복하지 않도록 별도 push CI를 실행하지 않습니다.
+## CI 자동화
 
-PR 라벨은 `관련 이슈: #번호` 형식의 연결 이슈 라벨과 변경 파일 경로를 기준으로 자동 부착합니다.
+GitHub Actions에서 다음 작업을 자동으로 실행합니다.
 
-### 리팩토링 전 (Java + XML)
+- debug unit test
+- debug build
+- focused Kover HTML/XML report
+- coverage summary Markdown/JSON/HTML 생성
+- test/coverage artifact 업로드
+- PR 라벨 자동 부착
 
-- 액티비티 및 프래그먼트가 각 화면마다 별도로 존재
-- XML 레이아웃 파일로 UI 구성
-- 여러 개의 액티비티 및 프래그먼트 파일을 관리해야 함
+`develop` 대상 PR에서는 빠른 focused coverage를 중심으로 확인하고, `main` push 또는 수동 실행에서는 전체 참고 coverage도 생성합니다.
 
-### 리팩토링 후 (Kotlin + Jetpack Compose)
+## 참고 문서
 
-- 단일 액티비티와 Composable 함수들로 화면 구성
-- UI 선언형 방식으로 가독성 및 유지보수 용이성 향상
-- 기존에 있던 여러 액티비티 파일들이 하나의 Composable 함수로 통합
-
-
-### 리팩토링 전
-
-<img src="./images/test_java.png" alt="리팩토링 전" width="200"/>  
-<br>
-Java 때 프로젝트 파일의 수
-
-### 리팩토링 후
-
-<img src="./images/test_kotlin.png" alt="리팩토링 후" width="200"/>  
-<br>
-Kotlin과 Jetpack Compose로 리팩토링 후 프로젝트 구조가 이렇게 간결해졌습니다
-
-## 앱 작동 순서
-
-앱의 작동 흐름은 아래와 같습니다.
-
-1. **메인 화면**
-   <br>
-   <img src="./images/1.png" alt="메인화면" width="200"/>
-   <br>
-- 앱을 시작하면 메인 화면이 나타납니다. '테스트 시작!' 버튼을 누르면 퀴즈가 시작됩니다.
-   
-
-2. **퀴즈 화면**
-   <br>
-   <img src="./images/2.png" alt="퀴즈화면" width="200"/>
-   <br>
--  각 문제 화면은 이미지를 배경으로 사용하며, 이미지에 맞춰진 위치에 답변 버튼만 깔끔하게 표시됩니다. 사용자의 답변 선택에 따라 다음 문제로 자동 이동합니다.
-
-
-3. **결과 화면**
-   <br>
-   <img src="./images/3.png" alt="결과화면" width="200"/>
-   <br>
-- 총 6개의 문제를 풀고 나면, 사용자의 선택에 따라 최종 결과 이미지가 표시됩니다.
-
-## 기능 시연
-   <br>
-   <img src="./images/restart.gif" alt="다시시작" width="600"/>
-   <br>
-- **다시 시작** 버튼을 누르면 퀴즈가 처음부터 다시 시작됩니다. 모든 상태가 초기화되어 매끄럽게 앱을 재사용할 수 있습니다.
-
-## 코드의 흐름(MainActivity.kt 파일 참조)
-
-- Main 화면: 앱을 시작하면 첫 번째 화면인 MainScreen이 표시됩니다. '퀴즈 시작!' 버튼을 클릭하면 퀴즈가 시작됩니다.
-
-- 퀴즈 문제 화면: 각 문제는 QuestionScreen에서 표시되며, 사용자가 답을 선택하면 다음 문제로 자동 이동합니다.
-
-- 결과 화면: 모든 문제를 완료하면 ResultScreen이 표시되며, 최종 결과를 확인하고 퀴즈를 다시 시작할 수 있습니다.
-   
-
-
-
+- [빌드 및 테스트 기준선](./docs/build-test-baseline.md)
+- [커버리지 운영 기준](./docs/coverage.md)
+- [AI 활용 테스트 자동화 정리](./docs/ai-test-automation-report.md)
