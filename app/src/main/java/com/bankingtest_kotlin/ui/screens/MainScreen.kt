@@ -11,13 +11,11 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
 import com.bankingtest_kotlin.R
-import com.bankingtest_kotlin.navigation.Screen
 import androidx.compose.ui.layout.ContentScale
 
 @Composable
-fun MainScreen(navController: NavController) {
+fun MainScreen(onStartQuiz: () -> Unit) {
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -39,7 +37,7 @@ fun MainScreen(navController: NavController) {
             verticalArrangement = Arrangement.Bottom // 버튼을 맨 아래로 정렬
         ) {
             Button(
-                onClick = { navController.navigate(Screen.Question.createRoute(0)) },
+                onClick = onStartQuiz,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("테스트 시작!", fontSize = 20.sp, fontWeight = FontWeight.Bold)
