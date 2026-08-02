@@ -89,6 +89,7 @@ Kover 태스크 실행 후 `app/build/reports/kover/` 아래에 HTML/XML 리포�
 - coverage summary Markdown: `build/reports/coverage-summary/coverage-summary.md`
 - coverage summary JSON: `build/reports/coverage-summary/coverage-summary.json`
 - coverage quality HTML: `build/reports/coverage-summary/coverage-report.html`
+- PR/이슈 기록용 요약: `build/reports/coverage-summary/coverage-pr-summary.md`
 
 ## #4 완료 기준선
 
@@ -127,6 +128,14 @@ main push 또는 수동 실행에서는 `kover-full-reference` artifact로 전�
 workflow summary에는 focused coverage와 전체 참고 coverage의 기본 수치, 기준선 대비 변화량, 낮은 coverage 영역, 다음 테스트 후보를 표시한다.
 
 HTML 품질 리포트는 같은 정보를 사람이 반복적으로 확인하기 쉽게 재구성한 산출물이다. line/branch/instruction 중 부족한 지표와 낮은 coverage class를 빠르게 파악해 다음 테스트 보완 우선순위를 정하는 데 사용한다.
+
+#32 이후 coverage summary 리포트는 다음 정보를 함께 표시한다.
+
+- focused coverage 기준 품질 레벨
+- domain/result calculator, ViewModel, data 계층별 coverage 상태
+- unit test와 Compose UI flow test 실행 결과
+- 낮은 coverage 영역이 없을 때의 다음 테스트 후보
+- PR 본문 또는 이슈 댓글에 붙여넣기 쉬운 Markdown 요약
 
 CI 실행 시간을 줄이기 위해 PR에서는 전체 참고 리포트를 생략하고, Markdown/docs/images만 바뀐 PR 또는 Markdown/docs/images만 바뀐 main push는 Android CI를 실행하지 않는다. 같은 PR에 새 커밋이 올라오면 이전 실행은 concurrency 설정으로 취소한다.
 
