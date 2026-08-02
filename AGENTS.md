@@ -147,6 +147,51 @@ fun `마지막 질문에 답변하면 결과 화면 상태로 전환된다`() {
 - 단순히 `test1`, `calculateResultTest`처럼 의도를 알 수 없는 이름은 사용하지 않는다.
 - 필요하면 Given/When/Then 주석을 짧게 사용하되, 테스트명 자체가 먼저 읽히게 한다.
 
+## 커버리지 기록 규칙
+
+커버리지, 테스트 자동화, 리포트 자동화 작업을 완료할 때는 PR 본문과 이슈 댓글에 커버리지 기록을 남긴다.
+
+대표 품질 수치는 전체 앱 coverage가 아니라 focused coverage를 사용한다.
+
+기록 대상:
+
+- 확인일
+- 기준 리포트 이름: 예: focused debug coverage
+- focused LINE
+- focused BRANCH
+- focused INSTRUCTION
+- full reference 수치가 생성된 경우 해당 수치
+- 낮은 coverage 영역
+- 다음 테스트 후보
+- 생성된 artifact 이름
+- HTML 품질 리포트가 있으면 artifact 이름 또는 경로
+
+기록 방식:
+
+- PR 본문에는 해당 PR의 검증 결과와 커버리지 결과를 작성한다.
+- 이슈 본문은 계획과 완료 조건 중심으로 유지한다.
+- 실제 완료 시점의 수치는 이슈 댓글에 기록한다.
+- 수치에는 확인 날짜와 기준 리포트 이름을 함께 적는다.
+- generated code, Theme, Compose UI glue 등을 포함한 전체 coverage를 대표 품질 수치처럼 쓰지 않는다.
+- full reference coverage는 참고 지표로만 기록한다.
+
+권장 기록 형식:
+
+```md
+## 커버리지 기록
+
+확인일: YYYY-MM-DD
+기준: focused debug coverage
+
+- LINE:
+- BRANCH:
+- INSTRUCTION:
+- full reference:
+- 낮은 coverage 영역:
+- 다음 테스트 후보:
+- artifact:
+```
+
 ## 검증 명령
 
 Windows 환경에서는 Android Studio JBR을 우선 사용한다.
