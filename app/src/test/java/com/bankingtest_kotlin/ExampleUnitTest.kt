@@ -1,4 +1,4 @@
-package com.example.bankingtest_kotlin
+package com.bankingtest_kotlin
 
 import org.junit.Test
 

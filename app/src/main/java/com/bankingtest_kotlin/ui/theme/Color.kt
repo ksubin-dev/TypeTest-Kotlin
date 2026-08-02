@@ -1,4 +1,4 @@
-package com.example.bankingtest_kotlin.ui.theme
+package com.bankingtest_kotlin.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
