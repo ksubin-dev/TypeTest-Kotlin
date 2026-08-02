@@ -21,7 +21,7 @@ import com.bankingtest_kotlin.navigation.Screen
 import com.bankingtest_kotlin.presentation.QuizDestination
 import com.bankingtest_kotlin.presentation.QuizViewModel
 import com.bankingtest_kotlin.ui.screens.MainScreen
-import com.bankingtest_kotlin.ui.screens.QuestionScreen
+import com.bankingtest_kotlin.ui.screens.QuizScreen
 import com.bankingtest_kotlin.ui.screens.ResultScreen
 import com.bankingtest_kotlin.ui.theme.BankingTestTheme
 
@@ -67,13 +67,15 @@ fun QuizApp() {
             val question = uiState.currentQuestion
 
             if (question == null) {
-                LaunchedEffect(Unit) {
-                    navController.navigate(Screen.Main.route) {
-                        popUpTo(Screen.Main.route) { inclusive = true }
+                if (uiState.result == null) {
+                    LaunchedEffect(Unit) {
+                        navController.navigate(Screen.Main.route) {
+                            popUpTo(Screen.Main.route) { inclusive = true }
+                        }
                     }
                 }
             } else {
-                QuestionScreen(
+                QuizScreen(
                     question = question,
                     onAnswerSelected = { answer ->
                         when (quizViewModel.selectAnswer(answer)) {
@@ -102,10 +104,10 @@ fun QuizApp() {
                 ResultScreen(
                     result = result,
                     onRestartQuiz = {
-                        quizViewModel.restartQuiz()
-                        navController.navigate(Screen.Main.route) {
-                            popUpTo(Screen.Main.route) { inclusive = true }
+                        navController.navigate(Screen.Question.route) {
+                            popUpTo(Screen.Result.route) { inclusive = true }
                         }
+                        quizViewModel.restartQuiz()
                     }
                 )
             }

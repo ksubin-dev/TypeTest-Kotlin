@@ -8,16 +8,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bankingtest_kotlin.R
 import androidx.compose.ui.layout.ContentScale
+import com.bankingtest_kotlin.ui.QuizTestTags
 
 @Composable
 fun MainScreen(onStartQuiz: () -> Unit) {
     Box(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier
+            .fillMaxSize()
+            .testTag(QuizTestTags.MainScreen)
     ) {
         // 배경 이미지 설정
         Image(
@@ -38,7 +42,9 @@ fun MainScreen(onStartQuiz: () -> Unit) {
         ) {
             Button(
                 onClick = onStartQuiz,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag(QuizTestTags.StartButton)
             ) {
                 Text("테스트 시작!", fontSize = 20.sp, fontWeight = FontWeight.Bold)
             }

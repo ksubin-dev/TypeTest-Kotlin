@@ -7,6 +7,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -15,14 +17,17 @@ import com.bankingtest_kotlin.domain.Question
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.layout.ContentScale
 import com.bankingtest_kotlin.domain.Answer
+import com.bankingtest_kotlin.ui.QuizTestTags
 
 @Composable
-fun QuestionScreen(
+fun QuizScreen(
     question: Question,
     onAnswerSelected: (Answer) -> Unit
 ) {
     Box(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier
+            .fillMaxSize()
+            .testTag(QuizTestTags.QuizScreen)
     ) {
         // 배경 이미지
         question.imageResId?.let { resId ->
@@ -44,16 +49,39 @@ fun QuestionScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            question.answers.forEach { answer ->
+            Text(
+                text = question.text,
+                color = Color.White,
+                fontSize = 18.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+                    .testTag(QuizTestTags.QuestionText)
+            )
+
+            question.answers.forEachIndexed { index, answer ->
                 Button(
                     onClick = { onAnswerSelected(answer) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 8.dp)
+                        .testTag(QuizTestTags.answerButton(index))
                 ) {
                     Text(answer.text, fontSize = 16.sp, textAlign = TextAlign.Center)
                 }
             }
         }
     }
+}
+
+@Composable
+fun QuestionScreen(
+    question: Question,
+    onAnswerSelected: (Answer) -> Unit
+) {
+    QuizScreen(
+        question = question,
+        onAnswerSelected = onAnswerSelected
+    )
 }
