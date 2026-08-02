@@ -10,6 +10,7 @@ from coverage_summary import (
     build_markdown,
     low_coverage_classes,
     parse_report,
+    parse_test_results,
     read_baseline,
 )
 
@@ -36,6 +37,43 @@ SAMPLE_XML = """\
   <counter type="BRANCH" missed="3" covered="1"/>
   <counter type="LINE" missed="2" covered="11"/>
 </report>
+"""
+
+
+LAYER_XML = """\
+<?xml version="1.0" ?>
+<report name="sample">
+  <package name="com/bankingtest_kotlin">
+    <class name="com/bankingtest_kotlin/domain/calculator/ScoreBasedResultCalculator" sourcefilename="ScoreBasedResultCalculator.kt">
+      <counter type="INSTRUCTION" missed="0" covered="80"/>
+      <counter type="BRANCH" missed="0" covered="12"/>
+      <counter type="LINE" missed="0" covered="20"/>
+    </class>
+    <class name="com/bankingtest_kotlin/presentation/QuizViewModel" sourcefilename="QuizViewModel.kt">
+      <counter type="INSTRUCTION" missed="2" covered="90"/>
+      <counter type="BRANCH" missed="1" covered="19"/>
+      <counter type="LINE" missed="1" covered="39"/>
+    </class>
+    <counter type="INSTRUCTION" missed="2" covered="170"/>
+    <counter type="BRANCH" missed="1" covered="31"/>
+    <counter type="LINE" missed="1" covered="59"/>
+  </package>
+  <counter type="INSTRUCTION" missed="2" covered="170"/>
+  <counter type="BRANCH" missed="1" covered="31"/>
+  <counter type="LINE" missed="1" covered="59"/>
+</report>
+"""
+
+
+TEST_RESULT_XML = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="sample" tests="3" failures="0" errors="0" skipped="1">
+  <testcase classname="SampleTest" name="first"/>
+  <testcase classname="SampleTest" name="second"/>
+  <testcase classname="SampleTest" name="skipped">
+    <skipped/>
+  </testcase>
+</testsuite>
 """
 
 
@@ -178,6 +216,66 @@ class CoverageSummaryTest(unittest.TestCase):
 
             self.assertIn("full reference", html)
             self.assertIn("not generated in this run", html)
+
+    def test_test_result_xml을_품질_신호로_요약한다(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result_path = Path(directory) / "TEST-sample.xml"
+            result_path.write_text(TEST_RESULT_XML, encoding="utf-8")
+
+            summary = parse_test_results("unit tests", [str(result_path)])
+
+            self.assertTrue(summary.generated)
+            self.assertEqual("passed", summary.status)
+            self.assertEqual(3, summary.total)
+            self.assertEqual(2, summary.passed)
+            self.assertEqual(1, summary.skipped)
+
+    def test_json에_계층별_상태와_ui_flow_신호를_포함한다(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            xml_path = root / "report.xml"
+            result_path = root / "TEST-ui.xml"
+            xml_path.write_text(LAYER_XML, encoding="utf-8")
+            result_path.write_text(TEST_RESULT_XML, encoding="utf-8")
+            report = parse_report("focused debug", xml_path)
+            ui_flow = parse_test_results("Compose UI flow test", [str(result_path)])
+
+            summary = build_json(
+                reports=[report],
+                baseline={"reports": {"focused debug": {"LINE": {"percent": 52.94}}}},
+                low_threshold=80,
+                low_limit=5,
+                ui_flow_summary=ui_flow,
+            )
+
+            self.assertEqual("strong", summary["qualityLevel"])
+            self.assertEqual("passed", summary["testSignals"]["uiFlow"]["status"])
+            self.assertEqual("domain/result calculator", summary["layerStatus"][0]["name"])
+            self.assertIn("focused LINE", summary["prIssueSummary"])
+
+    def test_html에_계층_ui_pr_요약_섹션을_표시한다(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            xml_path = root / "report.xml"
+            result_path = root / "TEST-ui.xml"
+            xml_path.write_text(LAYER_XML, encoding="utf-8")
+            result_path.write_text(TEST_RESULT_XML, encoding="utf-8")
+            report = parse_report("focused debug", xml_path)
+            ui_flow = parse_test_results("Compose UI flow test", [str(result_path)])
+            summary = build_json(
+                reports=[report],
+                baseline={},
+                low_threshold=80,
+                low_limit=5,
+                ui_flow_summary=ui_flow,
+            )
+
+            html = build_html(summary)
+
+            self.assertIn("Core Layer Signals", html)
+            self.assertIn("Test Automation Signals", html)
+            self.assertIn("PR/Issue Summary", html)
+            self.assertIn("Compose UI flow test", html)
 
 
 if __name__ == "__main__":

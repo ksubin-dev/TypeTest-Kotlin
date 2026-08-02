@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import glob
 import html
 import json
 import os
@@ -69,6 +70,49 @@ class CoverageReport:
 
     def counter(self, counter_type: str) -> Counter:
         return self.counters.get(counter_type, Counter())
+
+
+@dataclass(frozen=True)
+class TestRunSummary:
+    label: str
+    total: int
+    failures: int
+    errors: int
+    skipped: int
+    files: list[str]
+
+    @property
+    def generated(self) -> bool:
+        return bool(self.files)
+
+    @property
+    def passed(self) -> int:
+        return max(self.total - self.failures - self.errors - self.skipped, 0)
+
+    @property
+    def failed(self) -> int:
+        return self.failures + self.errors
+
+    @property
+    def status(self) -> str:
+        if not self.generated:
+            return "not_run"
+        if self.failed > 0:
+            return "failed"
+        return "passed"
+
+    def as_dict(self) -> dict[str, int | str | list[str] | bool]:
+        return {
+            "label": self.label,
+            "generated": self.generated,
+            "status": self.status,
+            "total": self.total,
+            "passed": self.passed,
+            "failures": self.failures,
+            "errors": self.errors,
+            "skipped": self.skipped,
+            "files": self.files,
+        }
 
 
 def parse_report(label: str, xml_path: Path) -> CoverageReport:
@@ -173,6 +217,90 @@ def low_coverage_classes(
     )[:limit]
 
 
+def parse_test_results(label: str, patterns: list[str]) -> TestRunSummary:
+    files = sorted(
+        {
+            Path(match)
+            for pattern in patterns
+            for match in glob.glob(pattern, recursive=True)
+            if Path(match).is_file()
+        }
+    )
+    totals = {"total": 0, "failures": 0, "errors": 0, "skipped": 0}
+    for path in files:
+        root = ET.parse(path).getroot()
+        suites = root.findall(".//testsuite") if root.tag == "testsuites" else [root]
+        for suite in suites:
+            totals["total"] += int(suite.attrib.get("tests", "0"))
+            totals["failures"] += int(suite.attrib.get("failures", "0"))
+            totals["errors"] += int(suite.attrib.get("errors", "0"))
+            totals["skipped"] += int(suite.attrib.get("skipped", "0"))
+
+    return TestRunSummary(
+        label=label,
+        total=totals["total"],
+        failures=totals["failures"],
+        errors=totals["errors"],
+        skipped=totals["skipped"],
+        files=[path.as_posix() for path in files],
+    )
+
+
+def sum_counters(classes: list[ClassCoverage]) -> dict[str, Counter]:
+    return {
+        counter_type: Counter(
+            missed=sum(item.counter(counter_type).missed for item in classes),
+            covered=sum(item.counter(counter_type).covered for item in classes),
+        )
+        for counter_type in COUNTER_TYPES
+    }
+
+
+def layer_name_for(class_name: str) -> str | None:
+    if ".domain.calculator." in class_name:
+        return "domain/result calculator"
+    if ".presentation." in class_name and "ViewModel" in class_name:
+        return "ViewModel"
+    if ".data." in class_name:
+        return "data"
+    if ".domain." in class_name:
+        return "domain model"
+    return None
+
+
+def build_layer_status(report: CoverageReport) -> list[dict]:
+    if not report.generated:
+        return []
+
+    grouped: dict[str, list[ClassCoverage]] = {}
+    for item in report.classes:
+        layer = layer_name_for(item.name)
+        if layer is None:
+            continue
+        grouped.setdefault(layer, []).append(item)
+
+    order = ["domain/result calculator", "ViewModel", "data", "domain model"]
+    payload = []
+    for layer in order:
+        if layer not in grouped:
+            continue
+        counters = sum_counters(grouped[layer])
+        line = counters["LINE"]
+        branch = counters["BRANCH"]
+        payload.append(
+            {
+                "name": layer,
+                "classCount": len(grouped[layer]),
+                **{
+                    counter_type: counters[counter_type].as_dict()
+                    for counter_type in COUNTER_TYPES
+                },
+                "status": coverage_quality_level(line.percent, branch.percent),
+            }
+        )
+    return payload
+
+
 def recommendation_for(item: ClassCoverage) -> str:
     lower_name = item.name.lower()
     line = item.counter("LINE").percent
@@ -192,14 +320,98 @@ def recommendation_for(item: ClassCoverage) -> str:
     return "현재 coverage 유지 여부 확인"
 
 
+def status_label(status: str) -> str:
+    if status == "passed":
+        return "통과"
+    if status == "failed":
+        return "실패"
+    return "not run"
+
+
+def coverage_quality_level(line_percent: float, branch_percent: float) -> str:
+    if line_percent >= 90 and branch_percent >= 80:
+        return "strong"
+    if line_percent >= 80 and branch_percent >= 60:
+        return "stable"
+    if line_percent >= 50:
+        return "building"
+    return "baseline"
+
+
+def pr_summary_lines(summary: dict) -> list[str]:
+    focused = summary.get("reports", {}).get("focused debug", {})
+    full_reference = summary.get("reports", {}).get("full reference", {})
+    ui_flow = summary.get("testSignals", {}).get("uiFlow", {})
+    low_areas = summary.get("lowCoverageAreas", [])
+
+    lines = [
+        "## Coverage Quality Summary",
+        "",
+        "- quality signal: focused debug coverage",
+    ]
+    if focused.get("generated"):
+        line = focused.get("LINE", {})
+        branch = focused.get("BRANCH", {})
+        lines.append(
+            f"- focused LINE: {format_json_percent(line)} ({format_json_fraction(line)}), {format_json_delta(line)}"
+        )
+        lines.append(
+            f"- focused BRANCH: {format_json_percent(branch)} ({format_json_fraction(branch)}), {format_json_delta(branch)}"
+        )
+    else:
+        lines.append("- focused report: not generated")
+
+    if full_reference.get("generated"):
+        line = full_reference.get("LINE", {})
+        lines.append(
+            f"- full reference LINE: {format_json_percent(line)} ({format_json_fraction(line)}), {format_json_delta(line)}"
+        )
+    else:
+        lines.append("- full reference: not generated in this run")
+
+    lines.append(f"- UI flow test: {status_label(str(ui_flow.get('status', 'not_run')))}")
+    lines.append(f"- low coverage areas: {len(low_areas)}")
+    lines.append("")
+
+    candidates = summary.get("nextTestCandidates", [])
+    if candidates:
+        lines.append("### Next Test Candidates")
+        lines.append("")
+        for candidate in candidates:
+            class_name = candidate.get("className")
+            recommendation = candidate.get("recommendation")
+            if class_name:
+                lines.append(f"- `{class_name}`: {recommendation}")
+            else:
+                lines.append(f"- {recommendation}")
+        lines.append("")
+
+    return lines
+
+
 def build_markdown(
     reports: list[CoverageReport],
     baseline: dict,
     output_path: Path,
     low_threshold: float,
     low_limit: int,
+    unit_test_summary: TestRunSummary | None = None,
+    ui_flow_summary: TestRunSummary | None = None,
 ) -> str:
-    generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    summary = build_json(
+        reports=reports,
+        baseline=baseline,
+        low_threshold=low_threshold,
+        low_limit=low_limit,
+        unit_test_summary=unit_test_summary,
+        ui_flow_summary=ui_flow_summary,
+    )
+    return build_markdown_from_summary(summary, output_path)
+
+
+def build_markdown_from_summary(summary: dict, output_path: Path) -> str:
+    generated_at = datetime.fromisoformat(str(summary["generatedAt"])).strftime("%Y-%m-%d %H:%M:%S UTC")
+    reports = summary.get("reports", {})
     lines = [
         "# Coverage Summary",
         "",
@@ -207,6 +419,7 @@ def build_markdown(
         f"- output: `{output_path.as_posix()}`",
         "- quality signal: focused debug coverage",
         "- full reference coverage is informational only",
+        f"- quality level: {summary.get('qualityLevel', 'unknown')}",
         "",
         "## Current Coverage",
         "",
@@ -214,24 +427,70 @@ def build_markdown(
         "| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
     ]
 
-    for report in reports:
-        if not report.generated:
+    for label, report in reports.items():
+        if not report.get("generated", False):
             lines.append(
-                f"| {report.label} | not generated | n/a | not generated | n/a | not generated | n/a | `{report.xml_path.as_posix()}` |"
+                f"| {label} | not generated | n/a | not generated | n/a | not generated | n/a | `{report.get('xmlPath', '')}` |"
             )
             continue
 
-        row = [f"| {report.label}"]
+        row = [f"| {label}"]
         for counter_type in COUNTER_TYPES:
-            counter = report.counter(counter_type)
-            previous = baseline_percent(baseline, report.label, counter_type)
-            row.append(format_percent(counter))
-            row.append(format_delta(counter.percent, previous))
-        row.append(f"`{report.xml_path.as_posix()}` |")
+            counter = report.get(counter_type, {})
+            row.append(f"{format_json_percent(counter)} ({format_json_fraction(counter)})")
+            row.append(format_json_delta(counter))
+        row.append(f"`{report.get('xmlPath', '')}` |")
         lines.append(" | ".join(row))
 
-    focused = next((report for report in reports if report.label == "focused debug"), reports[0])
-    low_items = low_coverage_classes(focused, low_threshold, low_limit)
+    layer_status = summary.get("layerStatus", [])
+    lines.extend(["", "## Core Layer Signals", ""])
+    if not layer_status:
+        lines.append("- No focused layer status was generated.")
+    else:
+        lines.extend(
+            [
+                "| Layer | Classes | LINE | BRANCH | Status |",
+                "| --- | ---: | ---: | ---: | --- |",
+            ]
+        )
+        for layer in layer_status:
+            lines.append(
+                " | ".join(
+                    [
+                        f"| {layer.get('name', '')}",
+                        str(layer.get("classCount", 0)),
+                        f"{format_json_percent(layer.get('LINE', {}))} ({format_json_fraction(layer.get('LINE', {}))})",
+                        f"{format_json_percent(layer.get('BRANCH', {}))} ({format_json_fraction(layer.get('BRANCH', {}))})",
+                        f"{layer.get('status', 'unknown')} |",
+                    ]
+                )
+            )
+
+    test_signals = summary.get("testSignals", {})
+    lines.extend(["", "## Test Automation Signals", ""])
+    if not test_signals:
+        lines.append("- No test result signal was generated.")
+    else:
+        lines.extend(
+            [
+                "| Signal | Status | Passed | Failed | Skipped | Files |",
+                "| --- | --- | ---: | ---: | ---: | ---: |",
+            ]
+        )
+        for signal in test_signals.values():
+            files = signal.get("files", [])
+            lines.append(
+                " | ".join(
+                    [
+                        f"| {signal.get('label', '')}",
+                        status_label(str(signal.get("status", "not_run"))),
+                        str(signal.get("passed", 0)),
+                        str(signal.get("failures", 0) + signal.get("errors", 0)),
+                        str(signal.get("skipped", 0)),
+                        f"{len(files)} |",
+                    ]
+                )
+            )
 
     lines.extend(
         [
@@ -240,10 +499,11 @@ def build_markdown(
             "",
         ]
     )
-    if not focused.generated:
+    low_items = summary.get("lowCoverageAreas", [])
+    if not reports.get("focused debug", {}).get("generated", False):
         lines.append("- focused report was not generated.")
     elif not low_items:
-        lines.append(f"- No focused classes below {low_threshold:.0f}% line coverage.")
+        lines.append("- No focused classes below 80% line coverage.")
     else:
         lines.extend(
             [
@@ -255,11 +515,11 @@ def build_markdown(
             lines.append(
                 " | ".join(
                     [
-                        f"| `{item.name}`",
-                        f"`{item.source_file}`",
-                        format_percent(item.counter("LINE")),
-                        format_percent(item.counter("BRANCH")),
-                        f"{format_percent(item.counter('INSTRUCTION'))} |",
+                        f"| `{item.get('className', '')}`",
+                        f"`{item.get('sourceFile', '')}`",
+                        f"{format_json_percent(item.get('line', {}))} ({format_json_fraction(item.get('line', {}))})",
+                        f"{format_json_percent(item.get('branch', {}))} ({format_json_fraction(item.get('branch', {}))})",
+                        f"{format_json_percent(item.get('instruction', {}))} ({format_json_fraction(item.get('instruction', {}))}) |",
                     ]
                 )
             )
@@ -271,27 +531,29 @@ def build_markdown(
             "",
         ]
     )
-    if not focused.generated:
-        lines.append("- Generate focused Kover XML before selecting test candidates.")
-    elif not low_items:
-        lines.append("- Coverage is above the current low-coverage threshold. Consider enabling a coverage gate.")
-    else:
-        seen: set[str] = set()
-        for item in low_items:
-            recommendation = recommendation_for(item)
-            if recommendation in seen:
-                continue
-            seen.add(recommendation)
-            lines.append(f"- `{item.name}`: {recommendation}")
+    for candidate in summary.get("nextTestCandidates", []):
+        class_name = candidate.get("className")
+        recommendation = candidate.get("recommendation", "")
+        if class_name:
+            lines.append(f"- `{class_name}`: {recommendation}")
+        else:
+            lines.append(f"- {recommendation}")
 
     lines.extend(
         [
+            "",
+            "## PR/Issue Summary",
+            "",
+            "```markdown",
+            *pr_summary_lines(summary),
+            "```",
             "",
             "## AI Analysis Notes",
             "",
             "- Treat focused debug coverage as the main production-code quality signal.",
             "- Use full reference coverage only to explain why Compose/UI glue is not part of the pass/fail number.",
-            "- Before applying an 80% gate, prioritize ResultCalculator and ViewModel tests.",
+            "- Use test automation signals to separate coverage quality from UI flow regression safety.",
+            "- Use next test candidates as the next small refactoring safety net.",
             "",
         ]
     )
@@ -311,11 +573,17 @@ def build_json(
     baseline: dict,
     low_threshold: float,
     low_limit: int,
+    unit_test_summary: TestRunSummary | None = None,
+    ui_flow_summary: TestRunSummary | None = None,
 ) -> dict:
     focused = next((report for report in reports if report.label == "focused debug"), reports[0])
-    return {
+    focused_line = focused.counter("LINE")
+    focused_branch = focused.counter("BRANCH")
+    low_items = low_coverage_classes(focused, low_threshold, low_limit) if focused.generated else []
+    summary = {
         "generatedAt": datetime.now(timezone.utc).isoformat(),
         "qualitySignal": "focused debug",
+        "qualityLevel": coverage_quality_level(focused_line.percent, focused_branch.percent),
         "reports": {
             report.label: {
                 "xmlPath": report.xml_path.as_posix(),
@@ -330,6 +598,11 @@ def build_json(
             }
             for report in reports
         },
+        "layerStatus": build_layer_status(focused),
+        "testSignals": {
+            "unit": (unit_test_summary or TestRunSummary("unit tests", 0, 0, 0, 0, [])).as_dict(),
+            "uiFlow": (ui_flow_summary or TestRunSummary("Compose UI flow test", 0, 0, 0, 0, [])).as_dict(),
+        },
         "lowCoverageAreas": [
             {
                 "className": item.name,
@@ -339,11 +612,69 @@ def build_json(
                 "instruction": item.counter("INSTRUCTION").as_dict(),
                 "recommendation": recommendation_for(item),
             }
-            for item in low_coverage_classes(focused, low_threshold, low_limit)
+            for item in low_items
         ]
         if focused.generated
         else [],
     }
+    summary["nextTestCandidates"] = next_test_candidates(summary)
+    summary["prIssueSummary"] = "\n".join(pr_summary_lines(summary)).strip() + "\n"
+    return summary
+
+
+def next_test_candidates(summary: dict) -> list[dict[str, str | None]]:
+    reports = summary.get("reports", {})
+    focused = reports.get("focused debug", {})
+    ui_flow = summary.get("testSignals", {}).get("uiFlow", {})
+    low_areas = summary.get("lowCoverageAreas", [])
+
+    if not focused.get("generated", False):
+        return [
+            {
+                "className": None,
+                "recommendation": "Generate focused Kover XML before selecting test candidates.",
+            }
+        ]
+
+    if ui_flow.get("generated") and ui_flow.get("status") == "failed":
+        return [
+            {
+                "className": None,
+                "recommendation": "Compose UI flow test failure를 먼저 수정해 사용자 흐름 회귀를 해소",
+            }
+        ]
+
+    if low_areas:
+        return [
+            {
+                "className": item.get("className"),
+                "recommendation": item.get("recommendation", ""),
+            }
+            for item in low_areas
+        ]
+
+    branch = focused.get("BRANCH", {})
+    line = focused.get("LINE", {})
+    if float(branch.get("percent", 0.0)) < 90:
+        return [
+            {
+                "className": None,
+                "recommendation": "focused line은 충분하므로 다음 단계에서는 branch coverage 90% 근처까지 조건 분기 테스트를 보강",
+            }
+        ]
+    if float(line.get("percent", 0.0)) >= 90:
+        return [
+            {
+                "className": None,
+                "recommendation": "focused coverage가 안정권이므로 80% gate 적용 후보 이슈를 검토",
+            }
+        ]
+    return [
+        {
+            "className": None,
+            "recommendation": "새 리팩토링 전 주요 public 동작 중심으로 line coverage를 보강",
+        }
+    ]
 
 
 def format_json_percent(counter: dict) -> str:
@@ -375,9 +706,13 @@ def build_html(summary: dict) -> str:
     generated_at = html.escape(str(summary.get("generatedAt", "unknown")))
     reports = summary.get("reports", {})
     low_areas = summary.get("lowCoverageAreas", [])
+    layer_status = summary.get("layerStatus", [])
+    test_signals = summary.get("testSignals", {})
+    next_candidates = summary.get("nextTestCandidates", [])
     focused = reports.get("focused debug", {})
     focused_line = focused.get("LINE", {})
     focused_branch = focused.get("BRANCH", {})
+    ui_flow = test_signals.get("uiFlow", {})
 
     def metric_card(title: str, counter: dict, description: str) -> str:
         percent = float(counter.get("percent", 0.0))
@@ -402,6 +737,19 @@ def build_html(summary: dict) -> str:
           <div class="metric-meta">{html.escape(label)} below threshold</div>
           <div class="bar" aria-hidden="true"><span style="width: {'100' if count == 0 else '18'}%"></span></div>
           <p>{html.escape(description)}</p>
+        </section>
+        """
+
+    def test_card(signal: dict) -> str:
+        status = str(signal.get("status", "not_run"))
+        css_class = {"passed": "good", "failed": "bad"}.get(status, "warn")
+        return f"""
+        <section class="metric {css_class}">
+          <div class="metric-label">UI Flow Test</div>
+          <div class="metric-value">{html.escape(status_label(status))}</div>
+          <div class="metric-meta">{signal.get("passed", 0)}/{signal.get("total", 0)} passed · {len(signal.get("files", []))} files</div>
+          <div class="bar" aria-hidden="true"><span style="width: {'100' if status == 'passed' else '45' if status == 'not_run' else '18'}%"></span></div>
+          <p>Compose 사용자 흐름 테스트가 coverage 밖의 회귀 안전망으로 동작하는지 보여줍니다.</p>
         </section>
         """
 
@@ -448,29 +796,76 @@ def build_html(summary: dict) -> str:
             """
         )
 
+    layer_rows = []
+    for layer in layer_status:
+        line = layer.get("LINE", {})
+        branch = layer.get("BRANCH", {})
+        instruction = layer.get("INSTRUCTION", {})
+        layer_rows.append(
+            f"""
+            <tr>
+              <td>{html.escape(str(layer.get("name", "")))}</td>
+              <td>{layer.get("classCount", 0)}</td>
+              <td>{format_json_percent(line)} <span>{format_json_fraction(line)}</span></td>
+              <td>{format_json_percent(branch)} <span>{format_json_fraction(branch)}</span></td>
+              <td>{format_json_percent(instruction)} <span>{format_json_fraction(instruction)}</span></td>
+              <td><span class="badge">{html.escape(str(layer.get("status", "unknown")))}</span></td>
+            </tr>
+            """
+        )
+
+    test_rows = []
+    for signal in test_signals.values():
+        test_rows.append(
+            f"""
+            <tr>
+              <td>{html.escape(str(signal.get("label", "")))}</td>
+              <td><span class="badge">{html.escape(status_label(str(signal.get("status", "not_run"))))}</span></td>
+              <td>{signal.get("passed", 0)}</td>
+              <td>{int(signal.get("failures", 0)) + int(signal.get("errors", 0))}</td>
+              <td>{signal.get("skipped", 0)}</td>
+              <td>{len(signal.get("files", []))}</td>
+            </tr>
+            """
+        )
+
     recommendations = []
     seen: set[str] = set()
-    for item in low_areas:
+    for item in next_candidates:
         recommendation = str(item.get("recommendation", "")).strip()
-        class_name = str(item.get("className", "")).strip()
+        class_name = str(item.get("className") or "").strip()
         key = f"{class_name}:{recommendation}"
         if not recommendation or key in seen:
             continue
         seen.add(key)
-        recommendations.append(
-            f"<li><code>{html.escape(class_name)}</code><span>{html.escape(recommendation)}</span></li>"
-        )
+        if class_name:
+            recommendations.append(
+                f"<li><code>{html.escape(class_name)}</code><span>{html.escape(recommendation)}</span></li>"
+            )
+        else:
+            recommendations.append(f"<li><span>{html.escape(recommendation)}</span></li>")
 
     low_area_markup = (
         "\n".join(low_rows)
         if low_rows
         else '<tr><td colspan="5" class="muted">No focused classes are below the threshold.</td></tr>'
     )
+    layer_markup = (
+        "\n".join(layer_rows)
+        if layer_rows
+        else '<tr><td colspan="6" class="muted">No focused layer status was generated.</td></tr>'
+    )
+    test_markup = (
+        "\n".join(test_rows)
+        if test_rows
+        else '<tr><td colspan="6" class="muted">No test signal was generated.</td></tr>'
+    )
     recommendation_markup = (
         "\n".join(recommendations)
         if recommendations
         else "<li><span>No immediate low-coverage candidate found. Consider enabling a focused coverage gate.</span></li>"
     )
+    pr_issue_summary = html.escape(str(summary.get("prIssueSummary", "")).strip())
 
     return f"""<!doctype html>
 <html lang="ko">
@@ -529,7 +924,7 @@ def build_html(summary: dict) -> str:
     }}
     .grid {{
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 12px;
       margin: 18px 0 26px;
     }}
@@ -567,6 +962,23 @@ def build_html(summary: dict) -> str:
       border-radius: 5px;
       padding: 2px 5px;
       word-break: break-word;
+    }}
+    pre {{
+      background: #111827;
+      color: #f8fafc;
+      border-radius: 8px;
+      overflow-x: auto;
+      padding: 14px;
+      white-space: pre-wrap;
+    }}
+    .badge {{
+      display: inline-block;
+      border-radius: 999px;
+      background: #eef2f7;
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 3px 8px;
     }}
     .section {{ margin-top: 16px; }}
     .recommendations {{
@@ -607,6 +1019,7 @@ def build_html(summary: dict) -> str:
       <div class="meta">
         <span class="pill">generated: {generated_at}</span>
         <span class="pill">quality signal: {html.escape(str(summary.get("qualitySignal", "focused debug")))}</span>
+        <span class="pill">quality level: {html.escape(str(summary.get("qualityLevel", "unknown")))}</span>
         <span class="pill">full reference is informational</span>
       </div>
     </header>
@@ -617,6 +1030,7 @@ def build_html(summary: dict) -> str:
         {metric_card("Focused LINE", focused_line, "핵심 production code의 실행 라인 보호 수준입니다.")}
         {metric_card("Focused BRANCH", focused_branch, "조건 분기와 예외 흐름 테스트가 충분한지 보는 신호입니다.")}
         {count_card("Low Coverage Areas", len(low_areas), "테스트 보완 우선순위가 필요한 class 수입니다.")}
+        {test_card(ui_flow)}
       </div>
     </section>
 
@@ -637,6 +1051,48 @@ def build_html(summary: dict) -> str:
           </thead>
           <tbody>
             {''.join(report_rows)}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Core Layer Signals</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Layer</th>
+              <th>Classes</th>
+              <th>LINE</th>
+              <th>BRANCH</th>
+              <th>INSTRUCTION</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {layer_markup}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Test Automation Signals</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Signal</th>
+              <th>Status</th>
+              <th>Passed</th>
+              <th>Failed</th>
+              <th>Skipped</th>
+              <th>Files</th>
+            </tr>
+          </thead>
+          <tbody>
+            {test_markup}
           </tbody>
         </table>
       </div>
@@ -670,8 +1126,13 @@ def build_html(summary: dict) -> str:
     </section>
 
     <section class="section">
+      <h2>PR/Issue Summary</h2>
+      <pre>{pr_issue_summary}</pre>
+    </section>
+
+    <section class="section">
       <h2>Analysis Notes</h2>
-      <p class="note">focused debug coverage를 주요 품질 신호로 보고, full reference coverage는 Compose UI와 Android 연결 코드가 포함된 참고 지표로만 사용합니다. 80% gate를 적용하기 전에는 ResultCalculator와 ViewModel 테스트를 우선 보강합니다.</p>
+      <p class="note">focused debug coverage를 주요 품질 신호로 보고, full reference coverage는 Compose UI와 Android 연결 코드가 포함된 참고 지표로만 사용합니다. UI flow test는 coverage 수치가 아니라 사용자 흐름 회귀를 막는 별도 신호로 봅니다.</p>
     </section>
   </main>
 </body>
@@ -692,9 +1153,24 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output", type=Path, default=Path("build/reports/coverage-summary/coverage-summary.md"))
     parser.add_argument("--json-output", type=Path, default=Path("build/reports/coverage-summary/coverage-summary.json"))
     parser.add_argument("--html-output", type=Path, default=Path("build/reports/coverage-summary/coverage-report.html"))
+    parser.add_argument(
+        "--pr-summary-output",
+        type=Path,
+        default=Path("build/reports/coverage-summary/coverage-pr-summary.md"),
+    )
     parser.add_argument("--append-step-summary", action="store_true")
     parser.add_argument("--low-threshold", type=float, default=80.0)
     parser.add_argument("--low-limit", type=int, default=10)
+    parser.add_argument(
+        "--unit-test-results",
+        nargs="*",
+        default=["app/build/test-results/testDebugUnitTest/*.xml"],
+    )
+    parser.add_argument(
+        "--ui-test-results",
+        nargs="*",
+        default=["app/build/outputs/androidTest-results/connected/**/*.xml"],
+    )
     return parser.parse_args()
 
 
@@ -705,18 +1181,22 @@ def main() -> int:
         parse_report("full reference", args.full_xml),
     ]
     baseline = read_baseline(args.baseline)
+    unit_test_summary = parse_test_results("unit tests", args.unit_test_results)
+    ui_flow_summary = parse_test_results("Compose UI flow test", args.ui_test_results)
 
-    markdown = build_markdown(
+    summary_json = build_json(
         reports=reports,
         baseline=baseline,
-        output_path=args.output,
         low_threshold=args.low_threshold,
         low_limit=args.low_limit,
+        unit_test_summary=unit_test_summary,
+        ui_flow_summary=ui_flow_summary,
     )
-    summary_json = build_json(reports, baseline, args.low_threshold, args.low_limit)
+    markdown = build_markdown_from_summary(summary_json, args.output)
     write_text(args.output, markdown)
     write_text(args.json_output, json.dumps(summary_json, ensure_ascii=False, indent=2) + "\n")
     write_text(args.html_output, build_html(summary_json))
+    write_text(args.pr_summary_output, summary_json["prIssueSummary"])
 
     if args.append_step_summary:
         summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
@@ -728,6 +1208,7 @@ def main() -> int:
     print(f"Coverage summary written to {args.output}")
     print(f"Coverage summary JSON written to {args.json_output}")
     print(f"Coverage quality HTML written to {args.html_output}")
+    print(f"Coverage PR summary written to {args.pr_summary_output}")
     return 0
 
 
