@@ -10,11 +10,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.bankingtest_kotlin.Result
+import com.bankingtest_kotlin.domain.QuizResult
 import androidx.compose.ui.layout.ContentScale
 
 @Composable
-fun ResultScreen(result: Result, onRestartQuiz: () -> Unit) {
+fun ResultScreen(result: QuizResult, onRestartQuiz: () -> Unit) {
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
