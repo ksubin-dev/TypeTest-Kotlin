@@ -64,6 +64,12 @@ focused coverage 리포트:
 .\gradlew.bat :app:koverHtmlReport :app:koverXmlReport
 ```
 
+coverage summary Markdown/JSON 생성:
+
+```powershell
+python3 scripts/coverage_summary.py
+```
+
 일반 테스트:
 
 ```powershell
@@ -80,6 +86,8 @@ Kover 태스크 실행 후 `app/build/reports/kover/` 아래에 HTML/XML 리포�
 - focused XML: `app/build/reports/kover/reportDebug.xml`
 - 전체 참고 HTML: `app/build/reports/kover/html/index.html`
 - 전체 참고 XML: `app/build/reports/kover/report.xml`
+- coverage summary Markdown: `build/reports/coverage-summary/coverage-summary.md`
+- coverage summary JSON: `build/reports/coverage-summary/coverage-summary.json`
 
 ## #4 완료 기준선
 
@@ -111,9 +119,11 @@ develop 대상 PR에서는 빠른 focused coverage 리포트를 우선 생성한
 
 GitHub Actions에서는 `kover-focused-debug` artifact로 focused HTML/XML 리포트를 업로드한다.
 
+GitHub Actions에서는 `coverage-summary` artifact로 Markdown/JSON 요약 리포트를 업로드한다.
+
 main push 또는 수동 실행에서는 `kover-full-reference` artifact로 전체 참고 리포트도 업로드한다.
 
-workflow summary에는 focused coverage와 전체 참고 coverage의 기본 수치를 표시한다.
+workflow summary에는 focused coverage와 전체 참고 coverage의 기본 수치, 기준선 대비 변화량, 낮은 coverage 영역, 다음 테스트 후보를 표시한다.
 
 CI 실행 시간을 줄이기 위해 PR에서는 전체 참고 리포트를 생략하고, Markdown/docs/images만 바뀐 PR 또는 Markdown/docs/images만 바뀐 main push는 Android CI를 실행하지 않는다. 같은 PR에 새 커밋이 올라오면 이전 실행은 concurrency 설정으로 취소한다.
 
@@ -123,4 +133,4 @@ Gradle 의존성은 `gradle/actions/setup-gradle`의 basic cache를 사용한다
 
 전체 앱 coverage는 참고 지표이며, 실패 기준은 핵심 production code focused coverage에만 적용한다.
 
-coverage 변화량 비교와 다음 테스트 후보 자동 요약은 #24에서 Markdown summary/history로 분리해 진행한다.
+coverage 변화량 비교와 다음 테스트 후보 자동 요약은 `scripts/coverage_summary.py`가 생성하는 Markdown/JSON 리포트를 기준으로 확인한다.

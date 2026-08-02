@@ -72,6 +72,7 @@ $env:ANDROID_SDK_ROOT=$env:ANDROID_HOME
 
 - `test-results`
 - `kover-focused-debug`
+- `coverage-summary`
 
 `main` push 또는 수동 실행에서는 전체 참고 리포트도 `kover-full-reference` artifact로 생성합니다.
 

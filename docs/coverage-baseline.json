@@ -1,0 +1,47 @@
+{
+  "updatedAt": "2026-08-02",
+  "source": "#5 이후 로컬 Kover 기준선",
+  "qualitySignal": "focused debug",
+  "reports": {
+    "focused debug": {
+      "LINE": {
+        "covered": 27,
+        "missed": 24,
+        "total": 51,
+        "percent": 52.94
+      },
+      "BRANCH": {
+        "covered": 3,
+        "missed": 25,
+        "total": 28,
+        "percent": 10.71
+      },
+      "INSTRUCTION": {
+        "covered": 189,
+        "missed": 211,
+        "total": 400,
+        "percent": 47.25
+      }
+    },
+    "full reference": {
+      "LINE": {
+        "covered": 70,
+        "missed": 194,
+        "total": 264,
+        "percent": 26.52
+      },
+      "BRANCH": {
+        "covered": 10,
+        "missed": 114,
+        "total": 124,
+        "percent": 8.06
+      },
+      "INSTRUCTION": {
+        "covered": 595,
+        "missed": 2091,
+        "total": 2686,
+        "percent": 22.15
+      }
+    }
+  }
+}
