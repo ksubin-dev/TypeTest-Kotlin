@@ -17,9 +17,12 @@ PR과 최종 품질 기준의 대표 수치로 사용할 리포트다.
 - Compose compiler가 생성한 `ComposableSingletons*`
 - `navigation`
 - `ui`
+- 단순 domain data class
+- `@Serializable` DTO 및 serialization generated code
+- Android resource/asset 연결 adapter
 - theme, Preview, 화면 렌더링 중심 Composable
 
-향후 #5, #6, #7에서 패키지를 분리하면 focused coverage의 대표 대상은 다음 패키지로 이동한다.
+#5에서 `data`, `domain` 패키지를 만들었고, #6, #7에서 계산 로직과 ViewModel 상태 구조를 추가로 분리하면 focused coverage의 대표 대상은 다음 패키지로 이동한다.
 
 - `com.bankingtest_kotlin.domain.*`
 - `com.bankingtest_kotlin.data.*`
@@ -86,8 +89,19 @@ Kover 태스크 실행 후 `app/build/reports/kover/` 아래에 HTML/XML 리포�
 
 | 리포트 | LINE | BRANCH | INSTRUCTION | 해석 |
 | --- | ---: | ---: | ---: | --- |
-| focused debug | 0.00% (0/70) | 0.00% (0/12) | 0.00% (0/448) | 현재는 `QuizViewModel.kt`만 측정 대상이며, 아직 의미 있는 단위 테스트가 없다. |
+| focused debug | 0.00% (0/70) | 0.00% (0/12) | 0.00% (0/448) | #4 완료 시점 기준선이다. `QuizViewModel.kt`만 측정 대상이며, 아직 의미 있는 단위 테스트가 없다. |
 | 전체 참고 | 0.00% (0/230) | 0.00% (0/72) | 0.00% (0/2112) | Compose UI와 Android 연결 코드까지 포함한 참고 수치다. |
+
+## #5 이후 기준선
+
+확인일: 2026-08-02
+
+금융 테스트 데이터를 JSON과 Repository로 분리하고, JSON 데이터 무결성 테스트를 추가한 뒤의 기준선이다.
+
+| 리포트 | LINE | BRANCH | INSTRUCTION | 해석 |
+| --- | ---: | ---: | ---: | --- |
+| focused debug | 52.94% (27/51) | 10.71% (3/28) | 47.25% (189/400) | `QuizJsonParser`, `QuizMapper`, `QuizViewModel` 중심 수치다. ViewModel과 결과 계산 로직 테스트가 아직 없어 80% 기준은 적용하지 않는다. |
+| 전체 참고 | 26.52% (70/264) | 8.06% (10/124) | 22.15% (595/2686) | Compose UI와 Android 연결 코드까지 포함한 참고 수치다. |
 
 80% 기준 강제는 #6 결과 계산 로직 분리, #7 ViewModel 상태 구조 개선, #8 Compose UI 흐름 테스트 이후 별도 이슈에서 적용한다.
 

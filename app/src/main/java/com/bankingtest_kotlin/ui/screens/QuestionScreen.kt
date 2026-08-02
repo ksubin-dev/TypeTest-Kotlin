@@ -11,7 +11,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.bankingtest_kotlin.Question
+import com.bankingtest_kotlin.domain.Question
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.layout.ContentScale
 
