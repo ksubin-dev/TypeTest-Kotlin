@@ -23,17 +23,27 @@
 
 다른 유형 테스트, 광고, Play Store 링크, 결과 공유 기능은 별도 이슈가 있을 때만 작업한다.
 
-## 권장 이슈 진행 순서
+## 이슈 진행 순서
 
-1. #9 Android 프로젝트 루트 구조 정리
-2. #2 빌드 및 테스트 기준선 확보
-3. #3 패키지명, namespace, applicationId 정리
-4. #4 Kover 기반 커버리지 HTML/XML 리포트 구성
-5. #10 GitHub Actions 테스트 및 커버리지 리포트 자동화
-6. #5 금융 테스트 JSON 데이터 모델과 Repository 도입
-7. #6 점수 기반 ResultCalculator 분리와 단위 테스트 작성
-8. #7 QuizViewModel UiState/StateFlow 구조 개선
-9. #8 공통 Compose Quiz/Result 화면과 금융 테스트 회귀 테스트 작성
+최신 작업 순서와 백로그는 GitHub Issue #1을 기준으로 한다.
+
+`AGENTS.md`에는 자주 바뀌는 이슈 목록보다 오래 유지할 운영 규칙을 우선 기록한다.
+
+새 이슈가 생기거나 진행 순서가 바뀌면 기본적으로 #1의 체크리스트와 권장 진행 순서를 업데이트한다.
+
+브랜치/PR/커밋/테스트 원칙처럼 작업 방식 자체가 바뀌는 경우에만 `AGENTS.md`를 수정한다.
+
+## 빌드 설정 규칙
+
+Gradle 플러그인, 라이브러리 버전, Compose 관련 버전은 가능한 한 `gradle/libs.versions.toml`에서 관리한다.
+
+`build.gradle.kts`에는 직접 버전 문자열을 하드코딩하지 않고 version catalog alias를 우선 사용한다.
+
+새 의존성을 추가할 때는 먼저 `libs.versions.toml`에 version, library, plugin alias를 정의한 뒤 모듈 Gradle 파일에서 참조한다.
+
+Android Gradle Plugin, Gradle Wrapper, Kotlin, Compose처럼 빌드 전체에 영향을 주는 버전을 바꿀 때는 관련 이슈나 PR 본문에 변경 이유와 검증 결과를 남긴다.
+
+사용하지 않는 의존성은 추가하지 않고, 기존 의존성을 제거할 때는 빌드와 테스트 영향 범위를 확인한다.
 
 ## 아키텍처 규칙
 
@@ -341,6 +351,9 @@ PR 본문 끝에는 다음 체크리스트를 포함한다.
 - 사용자가 “필요한 이슈는 알아서 만들어도 된다”고 명시한 경우에만 작업 중 새 이슈를 직접 생성한다.
 - 새 이슈를 만들 때는 기존 이슈와 연결하고, 왜 별도 이슈로 분리했는지 본문에 적는다.
 - `develop` PR과 마찬가지로 새 이슈도 자동 종료 키워드를 사용하지 않는다.
+- 새 이슈를 만들거나 작업 순서가 바뀌면 #1 상위 이슈를 업데이트한다.
+- 새 이슈가 생겼다는 이유만으로 `AGENTS.md`를 수정하지 않는다.
+- 운영 규칙 자체가 바뀐 경우에만 `AGENTS.md` 수정 PR을 만든다.
 
 ## 라벨 최소 세트
 
