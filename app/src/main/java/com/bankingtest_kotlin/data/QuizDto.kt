@@ -22,7 +22,8 @@ data class QuestionDto(
 @Serializable
 data class AnswerDto(
     val text: String,
-    val resultId: Int
+    val resultId: Int? = null,
+    val scores: Map<String, Int> = emptyMap()
 )
 
 @Serializable

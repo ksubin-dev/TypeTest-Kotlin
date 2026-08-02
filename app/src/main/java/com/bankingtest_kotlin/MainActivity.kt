@@ -59,8 +59,8 @@ fun QuizApp(quizViewModel: QuizViewModel = viewModel()) {
 
             QuestionScreen(
                 question = question,
-                onAnswerSelected = { resultId ->
-                    quizViewModel.addAnswer(resultId)
+                onAnswerSelected = { answer ->
+                    quizViewModel.addAnswer(answer)
                     if (questionIndex < quizViewModel.questions.size - 1) {
                         navController.navigate(Screen.Question.createRoute(questionIndex + 1))
                     } else {

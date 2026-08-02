@@ -19,7 +19,7 @@ data class Question(
 
 data class Answer(
     val text: String,
-    val resultId: Int
+    val resultScores: Map<Int, Int>
 )
 
 data class QuizResult(

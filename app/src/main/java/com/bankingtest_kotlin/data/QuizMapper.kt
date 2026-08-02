@@ -28,10 +28,23 @@ class QuizMapper(
             answers = dto.answers.map { answer ->
                 Answer(
                     text = answer.text,
-                    resultId = answer.resultId
+                    resultScores = answer.toResultScores()
                 )
             }
         )
+    }
+
+    private fun AnswerDto.toResultScores(): Map<Int, Int> {
+        val mappedScores = scores.mapKeys { (resultId, _) ->
+            resultId.toIntOrNull()
+                ?: throw IllegalArgumentException("Result score key must be an integer: $resultId")
+        }
+
+        return when {
+            mappedScores.isNotEmpty() -> mappedScores
+            resultId != null -> mapOf(resultId to DEFAULT_RESULT_SCORE)
+            else -> throw IllegalArgumentException("Answer must define scores or resultId.")
+        }
     }
 
     private fun mapResult(dto: QuizResultDto): QuizResult {
@@ -41,5 +54,9 @@ class QuizMapper(
             imageName = dto.imageName,
             imageResId = dto.imageName?.let(drawableResourceMapper::resolveDrawableId)
         )
+    }
+
+    private companion object {
+        const val DEFAULT_RESULT_SCORE = 1
     }
 }
