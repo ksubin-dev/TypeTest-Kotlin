@@ -4,6 +4,8 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.kover)
 }
 
 android {
@@ -57,6 +59,7 @@ dependencies {
     implementation(libs.androidx.navigation.runtime.ktx)
     implementation(libs.ads.mobile.sdk)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.kotlinx.serialization.json)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -64,4 +67,30 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+}
+
+kover {
+    reports {
+        variant("debug") {
+            filters {
+                excludes {
+                    classes(
+                        "com.bankingtest_kotlin.MainActivity",
+                        "com.bankingtest_kotlin.MainActivityKt*",
+                        "com.bankingtest_kotlin.ComposableSingletons*",
+                        "com.bankingtest_kotlin.navigation.*",
+                        "com.bankingtest_kotlin.presentation.QuizViewModel\$Companion*",
+                        "com.bankingtest_kotlin.ui.*",
+                        "com.bankingtest_kotlin.domain.Answer",
+                        "com.bankingtest_kotlin.domain.Question",
+                        "com.bankingtest_kotlin.domain.Quiz",
+                        "com.bankingtest_kotlin.domain.QuizResult",
+                        "com.bankingtest_kotlin.data.*Dto*",
+                        "com.bankingtest_kotlin.data.AndroidDrawableResourceMapper",
+                        "com.bankingtest_kotlin.data.AssetQuizRepository",
+                    )
+                }
+            }
+        }
+    }
 }

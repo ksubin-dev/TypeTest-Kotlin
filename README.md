@@ -49,6 +49,40 @@ $env:ANDROID_SDK_ROOT=$env:ANDROID_HOME
 
 자세한 기준 환경과 현재 테스트 한계는 [빌드 및 테스트 기준선](./docs/build-test-baseline.md)을 확인합니다.
 
+## 커버리지 리포트
+
+이 프로젝트는 Kover 기반 HTML/XML 커버리지 리포트를 사용합니다.
+
+대표 품질 지표는 전체 앱 coverage가 아니라 결과 계산, 데이터 검증, ViewModel 상태 전이처럼 회귀 방지 가치가 큰 핵심 production code focused coverage를 기준으로 합니다.
+
+현재 단계에서는 리포트 생성 기반과 품질 요약 리포트를 구성하고, 80% 기준 강제는 결과 계산 로직과 ViewModel 테스트가 분리된 뒤 적용합니다.
+
+```powershell
+.\gradlew.bat :app:koverHtmlReportDebug :app:koverXmlReportDebug
+.\gradlew.bat :app:koverHtmlReport :app:koverXmlReport
+python3 scripts/coverage_summary.py
+```
+
+자세한 측정 기준과 리포트 해석 방식은 [커버리지 운영 기준](./docs/coverage.md)을 확인합니다.
+
+## CI
+
+`develop` 대상 PR에서는 GitHub Actions가 debug unit test, debug build, focused Kover HTML/XML 리포트 생성을 실행합니다.
+
+생성 artifact:
+
+- `test-results`
+- `kover-focused-debug`
+- `coverage-summary`
+
+`coverage-summary` artifact에는 Markdown/JSON 요약과 함께 테스트 보완 우선순위를 확인할 수 있는 HTML 품질 리포트가 포함됩니다.
+
+`main` push 또는 수동 실행에서는 전체 참고 리포트도 `kover-full-reference` artifact로 생성합니다.
+
+`develop` 병합 시점에는 PR에서 이미 실행한 검증을 반복하지 않도록 별도 push CI를 실행하지 않습니다.
+
+PR 라벨은 `관련 이슈: #번호` 형식의 연결 이슈 라벨과 변경 파일 경로를 기준으로 자동 부착합니다.
+
 ### 리팩토링 전 (Java + XML)
 
 - 액티비티 및 프래그먼트가 각 화면마다 별도로 존재

@@ -1,5 +1,6 @@
 package com.bankingtest_kotlin
 
+import android.app.Application
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -7,16 +8,20 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
 import com.bankingtest_kotlin.navigation.Screen
+import com.bankingtest_kotlin.presentation.QuizDestination
+import com.bankingtest_kotlin.presentation.QuizViewModel
 import com.bankingtest_kotlin.ui.screens.MainScreen
-import com.bankingtest_kotlin.ui.screens.QuestionScreen
+import com.bankingtest_kotlin.ui.screens.QuizScreen
 import com.bankingtest_kotlin.ui.screens.ResultScreen
 import com.bankingtest_kotlin.ui.theme.BankingTestTheme
 
@@ -37,51 +42,75 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun QuizApp(quizViewModel: QuizViewModel = viewModel()) {
+fun QuizApp() {
     val navController = rememberNavController()
+    val application = LocalContext.current.applicationContext as Application
+    val quizViewModel: QuizViewModel = viewModel(
+        factory = QuizViewModel.provideFactory(application)
+    )
+    val uiState by quizViewModel.uiState.collectAsState()
 
     NavHost(
         navController = navController,
         startDestination = Screen.Main.route
     ) {
         composable(Screen.Main.route) {
-            // 퀴즈 시작 시 뷰모델 초기화
-            quizViewModel.resetQuiz()
-            MainScreen(navController = navController)
+            MainScreen(
+                onStartQuiz = {
+                    quizViewModel.startQuiz()
+                    navController.navigate(Screen.Question.route)
+                }
+            )
         }
 
-        composable(
-            route = Screen.Question.route,
-            arguments = listOf(navArgument("questionIndex") { type = NavType.IntType })
-        ) { backStackEntry ->
-            val questionIndex = backStackEntry.arguments?.getInt("questionIndex") ?: 0
-            val question = quizViewModel.questions[questionIndex]
+        composable(Screen.Question.route) {
+            val question = uiState.currentQuestion
 
-            QuestionScreen(
-                question = question,
-                onAnswerSelected = { resultId ->
-                    quizViewModel.addAnswer(resultId)
-                    if (questionIndex < quizViewModel.questions.size - 1) {
-                        navController.navigate(Screen.Question.createRoute(questionIndex + 1))
-                    } else {
-                        navController.navigate(Screen.Result.route) {
+            if (question == null) {
+                if (uiState.result == null) {
+                    LaunchedEffect(Unit) {
+                        navController.navigate(Screen.Main.route) {
                             popUpTo(Screen.Main.route) { inclusive = true }
                         }
                     }
                 }
-            )
+            } else {
+                QuizScreen(
+                    question = question,
+                    onAnswerSelected = { answer ->
+                        when (quizViewModel.selectAnswer(answer)) {
+                            QuizDestination.Question -> Unit
+                            QuizDestination.Result -> {
+                                navController.navigate(Screen.Result.route) {
+                                    popUpTo(Screen.Question.route) { inclusive = true }
+                                }
+                            }
+                        }
+                    }
+                )
+            }
         }
 
         composable(Screen.Result.route) {
-            val result = quizViewModel.getFinalResult()
-            ResultScreen(
-                result = result,
-                onRestartQuiz = {
+            val result = uiState.result
+
+            if (result == null) {
+                LaunchedEffect(Unit) {
                     navController.navigate(Screen.Main.route) {
                         popUpTo(Screen.Main.route) { inclusive = true }
                     }
                 }
-            )
+            } else {
+                ResultScreen(
+                    result = result,
+                    onRestartQuiz = {
+                        navController.navigate(Screen.Question.route) {
+                            popUpTo(Screen.Result.route) { inclusive = true }
+                        }
+                        quizViewModel.restartQuiz()
+                    }
+                )
+            }
         }
     }
 }

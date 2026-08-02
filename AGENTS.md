@@ -147,6 +147,51 @@ fun `마지막 질문에 답변하면 결과 화면 상태로 전환된다`() {
 - 단순히 `test1`, `calculateResultTest`처럼 의도를 알 수 없는 이름은 사용하지 않는다.
 - 필요하면 Given/When/Then 주석을 짧게 사용하되, 테스트명 자체가 먼저 읽히게 한다.
 
+## 커버리지 기록 규칙
+
+커버리지, 테스트 자동화, 리포트 자동화 작업을 완료할 때는 PR 본문과 이슈 댓글에 커버리지 기록을 남긴다.
+
+대표 품질 수치는 전체 앱 coverage가 아니라 focused coverage를 사용한다.
+
+기록 대상:
+
+- 확인일
+- 기준 리포트 이름: 예: focused debug coverage
+- focused LINE
+- focused BRANCH
+- focused INSTRUCTION
+- full reference 수치가 생성된 경우 해당 수치
+- 낮은 coverage 영역
+- 다음 테스트 후보
+- 생성된 artifact 이름
+- HTML 품질 리포트가 있으면 artifact 이름 또는 경로
+
+기록 방식:
+
+- PR 본문에는 해당 PR의 검증 결과와 커버리지 결과를 작성한다.
+- 이슈 본문은 계획과 완료 조건 중심으로 유지한다.
+- 실제 완료 시점의 수치는 이슈 댓글에 기록한다.
+- 수치에는 확인 날짜와 기준 리포트 이름을 함께 적는다.
+- generated code, Theme, Compose UI glue 등을 포함한 전체 coverage를 대표 품질 수치처럼 쓰지 않는다.
+- full reference coverage는 참고 지표로만 기록한다.
+
+권장 기록 형식:
+
+```md
+## 커버리지 기록
+
+확인일: YYYY-MM-DD
+기준: focused debug coverage
+
+- LINE:
+- BRANCH:
+- INSTRUCTION:
+- full reference:
+- 낮은 coverage 영역:
+- 다음 테스트 후보:
+- artifact:
+```
+
 ## 검증 명령
 
 Windows 환경에서는 Android Studio JBR을 우선 사용한다.
@@ -327,7 +372,8 @@ PR 본문에는 다음 항목을 포함한다.
 - `영향 범위`: 금융 테스트, ViewModel, data layer 등 영향을 받는 범위를 적는다.
 - `제외한 작업`: 이번 PR에서 일부러 하지 않은 일을 명확히 적는다.
 - `후속 작업`: 다음 이슈나 남은 개선을 적는다.
-- `관련 이슈`: 자동 종료 키워드 없이 `관련 이슈: #번호`로 연결한다.
+- `관련 이슈`: 자동 종료 키워드 없이 `관련 이슈: #번호`로 연결한다. 이 항목은 PR 라벨 자동화가 이슈 라벨을 복사하는 기준이므로 누락하지 않는다.
+- PR 라벨은 GitHub Actions가 이슈 라벨과 변경 파일 경로를 기준으로 자동 부착한다. 자동화가 실패했거나 명백히 누락된 경우에만 수동으로 보정한다.
 
 ## PR 체크리스트
 
@@ -410,6 +456,8 @@ PR 본문 끝에는 다음 체크리스트를 포함한다.
 ## 라벨 최소 세트
 
 혼자 관리하는 프로젝트이므로 라벨은 적게 유지한다.
+
+PR 라벨은 기본적으로 GitHub Actions 자동화를 따른다. 새 PR을 만들 때 에이전트가 라벨을 수동으로 붙이는 일을 기본 절차로 삼지 않는다.
 
 권장 라벨:
 
